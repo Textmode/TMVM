@@ -58,12 +58,24 @@ local encoders = {
 		if af == 'register' and bf == 'register' then -- free-register form
 			if aa == true and aa == true then -- pure register form
 				return string.char(0x0f, reg_encode(av, bv))
-			end 
+			elseif aa == false and ba == false then --pure addressed register form
+				return string.char(0x02, reg_encode(av, bv))
+			end
 		end
 		
 		if af == 'literal' and bf=='register' then
-			assert(bv=="A", "MOV litteral to (not A) not implemented")
-			return string.char(0x05, tonumber(av))
+			if aa == true and ba == true then
+				assert(bv=="A", "MOV litteral to (not A) not implemented")
+				return string.char(0x05, tonumber(av))
+			elseif aa == false and ba == true then -- mixed get form
+				return string.char(0x04, tonumber(av))
+			end
+		end
+		if af == 'register' and bf=='literal' then
+			if aa == true and ba == false then -- mixed push/set form
+				assert(bv=="A", "MOV litteral from (not A) not implemented")
+				return string.char(0x03, tonumber(av))
+			end
 		end
 	end;
 	ADD = function(a, b)
@@ -89,7 +101,7 @@ local encoders = {
 	end;
 	SHW = function(a, b)
 		local af, aa, av = parm(a)
-		assert(af=='register', "SHW only presently works for registers")
+		assert(af=='register' and aa, "SHW only presently works for absolute registers")
 		
 		if av=='A' then
 			return string.char(0x0a)
@@ -106,6 +118,7 @@ local encoders = {
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "SWP only works with registers")
+		assert(aa and ba,  "SWP only works with absolute parms")
 		
 		if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
 			return string.char(0x08)
@@ -117,7 +130,8 @@ local encoders = {
 	LES = function(a, b)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(af == 'register' and bf == 'register', "LES only works with registers")
+		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
+		assert(aa and ba, "LES only works with absolute registers")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x0d)
@@ -128,10 +142,25 @@ local encoders = {
 		end
 		error("unhandled LES form!")
 	end;
+	GTR = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "GTR only works with absolute registers")
+		assert(aa and ba, "GTR only works with absolute registers")
+		
+		if (av == "A") and (bv == "B") then
+			return string.char(0xa3)
+		else -- free-register form
+			
+			--return string.char(0x0d)
+			error("GTR is only currently defined in the form GTR .A,.B")
+		end
+	end;
 	EQL = function(a, b)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "EQL only works with registers")
+		assert(aa and ba, "EQL only works with absolute registers")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0xa0)
@@ -144,14 +173,28 @@ local encoders = {
 	GTE = function(a, b)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(af == 'register' and bf == 'register', "GRT only works with registers")
+		assert(af == 'register' and bf == 'register', "GTE only works with registers")
+		assert(aa and ba, "GTE only works with absolute registers")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x08,0x0d,0x08) -- swap, lessthan, swap
 		else -- free-register form
-			error("GRT is only currently defined in the form GRT .A,.B")
+			error("GTE is only currently defined in the form GTE .A,.B")
 		end
 		error("unhandled GRT form!")
+	end;
+	LTE = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "LTE only works with registers")
+		assert(aa and ba, "LTE only works with absolute registers")
+		
+		if (av == "A") and (bv == "B") then
+			return string.char(0x08,0xa3,0x08) -- swap, lessthan, swap
+		else -- free-register form
+			error("GTE is only currently defined in the form LTE .A,.B")
+		end
+		error("unhandled LRT form!")
 	end;
 	LBL = function(a, b)
 		assert((a or b), "LBL requires parms")
@@ -165,6 +208,7 @@ local encoders = {
 		assert(not b, "JNZ only accepts one parm.")
 		local af, aa, av = parm(a)
 		assert(af=='literal' or af == 'symbol', "Only constant jump targets supported at this time.")
+		assert(aa, "JNZ only supports absolute (inline) jump targets at this time.")
 		
 		if af == 'literal' then 
 			return string.char(0x0c, av)
@@ -178,6 +222,7 @@ local encoders = {
 		assert(not b, "JMP only accepts one parm.")
 		local af, aa, av = parm(a)
 		assert(af=='literal' or af == 'symbol', "Only constant jump targets supported at this time.")
+		assert(aa, "JMP only supports absolute (inline) jump targets at this time.")
 		
 		if af == 'literal' then 
 			return string.char(0x0b, av)
@@ -191,6 +236,21 @@ local encoders = {
 		
 		symbols[a] = tonumber(b) or 0
 		return ""
+	end;
+	MNZ = function(a, b)
+		assert(a or b, "MNZ requires parms.")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register', "Can only conditionally move from registers at this time.")
+		assert(bf=='literal' or bf == 'symbol', "Only constant set values supported at this time.")
+		assert(aa and ba, "MNZ only supports absolute values at this time.")
+		
+		if bf == 'register' then 
+			return string.char(0x0e, reg_encode(av), bv)
+		elseif bf == 'symbol' then
+			return string.char(0x0e, reg_encode(av), 0x00), true
+		end		
+		error("unhandled JNZ form!")
 	end;
 }
 
