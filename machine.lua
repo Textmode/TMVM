@@ -134,7 +134,7 @@ _M.iset = {
 		return 1;
 	end;
 	[0x0b]=function(self) --  JMP nn (or if you prefer, MOV nn:.IP) unconditional jump with literal address
-		self.IP = self.memory[self.memory[self.IP+1]]
+		self.IP = self.memory[self.IP+1]
 		return 0;
 	end;
 	[0x0c]=function(self) --  JNZ RET, nn (or MNZ RET, nn:.IP) # fixed-register RET conditional jump with literal address
