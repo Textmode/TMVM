@@ -1,0 +1,97 @@
+Textmode Virtual Macaroni, or TMVM,  is a simple, poorly-designed, 
+simulation of a register-based system.
+It currently has an addressable memory space of 256 bytes (00..ff) 
+(Segments are planned, but not yet implemented). It runs at a nominal
+speed of 1MHz.
+
+Its not presently useful for much of anything, it also likely to be
+unstable and unreliable, so have fun! :D
+
+Note: TMVM is still under development, expect fundamental design and API
+changes.
+
+TMVM is cop
+
+== Requirements
+	Lua 5.1 or better.
+	A sense of humor.
+
+
+ 
+
+== Usage
+
+=== Machine
+
+machine.lua can be required. asm.lua can be required, or run as script
+(eg. 'lua asm.lua file.asm').
+
+machine exposes the following functions:
+	module:new(opt_name)
+		returns: machine
+		creates a new machine with the given name.
+		if no name is given, a default name will be provided.
+
+		
+	(VM):signal(opt_signal)
+		returns: signal, description
+		if given no parms, returns the current signal, and a (short) textual
+		 description.
+		otherwise it triggers the given signal.
+		if another signal has yet to be cleared, it will trigger a double
+		fault.
+		if a double-fault is uncleared, a triple-fault.
+		triggering a signal NONE will clear the signal.
+
+	
+	(VM):load(opt_start, data_string_or_table)
+		returns: (nothing)
+		attempts to load the given data into the machine's memory.
+		if start is omitted, it will load at address 0, segment 0.
+
+		
+	(VM):cycle(opt_num)
+		returns: machine_state
+		completes num instruction cycles. if num is omitted, it will assume
+		 1 cycle.
+
+		
+	(VM):run(bool_show_status_dumps) -- Broken!
+		returns: (nothing)
+		attempts to run the machine at its base speed.
+		if passed true, it will call VM:dump() roughly 1/s
+
+
+	(VM):dump()
+		returns: (nothing)
+		prints state information on the current machine
+
+=== ASM
+
+asm.lua can be required normally. additionally, it is a valid script and
+ can be directly run.
+ as a program, asm.lua takes the name of a source file, and optionally the
+  name of an output file. if no output file is given, it outputs to the
+   same filename with the ".crap" replacing its original extension: thus
+    'test.asm' outputs to 'test.crap'. regardless, it also prints a
+     lua-formatted table of hex digits representing the assembled binary.
+ 
+asm.lua exposes the following functions:
+
+	asm.load(filename)
+	returns: preparsed_chunk
+	loads the given file and returns a normalised chunk, suitable for
+	 further parsing.
+	
+	
+	asm.scrub(string)
+	returns: preparsed_chunk
+	processes the given string into a pre-parsed chunk, suitable for further
+	 parsing.
+	
+	asm.parse(chunk)
+	returns: final_bytestring
+	takes a pre-parsed chunk, and returns a fully-assembled chunk as a
+	 string, suitable for saving or loading into a machine.
+
+

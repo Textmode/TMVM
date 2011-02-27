@@ -1,0 +1,9 @@
+*~
+*.crap
+*.bin
+*.o
+*.tmp
+*.page
+*.seg
+*.luac
+

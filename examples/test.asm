@@ -1,0 +1,8 @@
+MOV 0, A
+SWP A, B
+MOV 1, A
+EQL A, B
+MOV RET, A
+SHW A
+HLT
+
