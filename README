@@ -1,27 +1,32 @@
 Textmode Virtual Macaroni, or TMVM,  is a simple, poorly-designed, 
-simulation of a register-based system.
+ simulation of a register-based system.
 It currently has an addressable memory space of 256 bytes (00..ff) 
-(Segments are planned, but not yet implemented). It runs at a nominal
-speed of 1MHz.
+ (Segments are planned, but not yet implemented). It runs at a nominal
+ speed of 1MHz.
 
 Its not presently useful for much of anything, it also likely to be
-unstable and unreliable, so have fun! :D
+ unstable and unreliable, so have fun! :D
+
+In all honesty, TMVM could be used as a toy system, or instructive aid.
+ its nigh-complete lack of higher-level features or space means its
+ effecively a void, an empty sandpit, in which you can do pretty much
+ anything you want without stepping on anything's toes.
 
 Note: TMVM is still under development, expect fundamental design and API
-changes.
+ changes.
 
-TMVM is created by DMB/Textmode, while ignore the well-thought advice of
+TMVM is created by DMB/Textmode, while ignoring the well thought-out advice of
  people who didn't realise that TMVM was meant to be very dubious in
- quality and use
+ quality and use.
+
 
 == Requirements
 	Lua 5.1 or better.
 	A sense of humor.
 
-
- 
-
 == Usage
+
+TMVM is divided into two basic parts; the machine, and the asm.
 
 === Machine
 
