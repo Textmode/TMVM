@@ -285,7 +285,7 @@ function _M:run(stats)
 	stats = stats or false
 	local time, ntime, dt = os.time(), nil, nil
 	
-	while not self.state == 'halt' do
+	while self.state ~= 'halt' do
 		self:cycle(self.speed)
 		
 		if stats then self:dump() end
