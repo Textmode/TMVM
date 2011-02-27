@@ -194,7 +194,10 @@ local encoders = {
 	end;
 }
 
-local function scrub(s)
+-----
+-- processes the given string into a pre-parsed chunk, suitable for
+--  further parsing.
+function _M.scrub(s)
 	local t = {}
 	s = s..'\n'
 --	s = string.gsub(s, "\n\n", "\n") --in retrospect, keep lines
@@ -209,8 +212,11 @@ local function scrub(s)
 	return t
 end
 
-_M = scrub
+local scrub = _M.scrub
 
+-----
+-- loads the given file and returns a normalised chunk, suitable for
+--  further parsing.
 function _M.load(fname)
 	local f, err = io.open(fname)
 	if not f then return nil, err end
@@ -221,12 +227,16 @@ function _M.load(fname)
 	return t
 end
 
+-----
+-- takes a pre-parsed chunk, and returns a fully-assembled chunk as a
+--  string, suitable for saving or loading into a machine.
 function _M.parse(t)
 	local tos = tostring
 	local c,p = {}, {}
 	
 	symbols = {}
 	
+	--  parse statements into operands and parms
 	local op, a, b
 	for i=1,#t do
 		op, a = string.match(t[i], "(%u*) *(.*)")
@@ -239,6 +249,7 @@ function _M.parse(t)
 		c[i]={op=op, a=a, b=b}
 	end
 	
+	-- encode into binary representations
 	local bin = {}
 	local op, a, b, r
 	len = 0
@@ -257,6 +268,7 @@ function _M.parse(t)
 		end
 	end
 	
+	-- now (re)do patch points
 	local i
 	for j=1,#p do
 		i = p[j]
@@ -274,6 +286,7 @@ function _M.parse(t)
 		
 	end
 	
+	-- concatinate the encoded fragments into a single chunk, and return it.
 	return table.concat(bin)
 end
 
