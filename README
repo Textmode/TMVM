@@ -4,20 +4,20 @@ It currently has an addressable memory space of 256 bytes (00..ff)
  (Segments are planned, but not yet implemented). It runs at a nominal
  speed of 1MHz.
 
-Its not presently useful for much of anything, it also likely to be
+It's not presently useful for much of anything, it is also likely to be
  unstable and unreliable, so have fun! :D
 
-In all honesty, TMVM could be used as a toy system, or instructive aid.
- its nigh-complete lack of higher-level features or space means its
- effecively a void, an empty sandpit, in which you can do pretty much
+In all honesty, TMVM could be used as a toy system, or as an instructive
+ aid (once it's more stable). It's nigh-complete lack of higher-level
+ features or space means it's effectively a void, an empty sandpit, in which you can do pretty much
  anything you want without stepping on anything's toes.
 
 Note: TMVM is still under development, expect fundamental design and API
  changes.
 
-TMVM is created by DMB/Textmode, while ignoring the well thought-out advice of
- people who didn't realise that TMVM was meant to be very dubious in
- quality and use.
+TMVM is created by DMB/Textmode, while ignoring the well thought-out
+ advice of many helpful people who didn't realise that TMVM was meant to
+ be very dubious in quality and use.
 
 
 == Requirements
@@ -65,7 +65,7 @@ machine exposes the following functions:
 		
 	(VM):run(bool_show_status_dumps) -- Broken!
 		returns: (nothing)
-		attempts to run the machine at its base speed.
+		attempts to run the machine at it's base speed.
 		if passed true, it will call VM:dump() roughly 1/s
 
 
@@ -79,9 +79,9 @@ asm.lua can be required normally. additionally, it is a valid script and
  can be directly run.
  as a program, asm.lua takes the name of a source file, and optionally the
  name of an output file. if no output file is given, it outputs to the
- same filename with the ".crap" replacing its original extension: thus
+ same filename with the ".crap" replacing it's original extension: thus
  'test.asm' outputs to 'test.crap'. regardless, it also prints a
- lua-formatted table of hex digits representing the assembled binary.
+ lua-formatted table of hex digit's representing the assembled binary.
  
 asm.lua exposes the following functions:
 
