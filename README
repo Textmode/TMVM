@@ -10,7 +10,9 @@ unstable and unreliable, so have fun! :D
 Note: TMVM is still under development, expect fundamental design and API
 changes.
 
-TMVM is cop
+TMVM is created by DMB/Textmode, while ignore the well-thought advice of
+ people who didn't realise that TMVM was meant to be very dubious in
+ quality and use
 
 == Requirements
 	Lua 5.1 or better.
@@ -71,10 +73,10 @@ machine exposes the following functions:
 asm.lua can be required normally. additionally, it is a valid script and
  can be directly run.
  as a program, asm.lua takes the name of a source file, and optionally the
-  name of an output file. if no output file is given, it outputs to the
-   same filename with the ".crap" replacing its original extension: thus
-    'test.asm' outputs to 'test.crap'. regardless, it also prints a
-     lua-formatted table of hex digits representing the assembled binary.
+ name of an output file. if no output file is given, it outputs to the
+ same filename with the ".crap" replacing its original extension: thus
+ 'test.asm' outputs to 'test.crap'. regardless, it also prints a
+ lua-formatted table of hex digits representing the assembled binary.
  
 asm.lua exposes the following functions:
 
