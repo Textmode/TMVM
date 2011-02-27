@@ -176,6 +176,10 @@ _M.iset = {
 		self.RET = round((self[a] / self[b])%256)
 		return 2;
 	end;
+	[0xa3]=function(self) --  GTR .A:.B -> RET # Fixed-register AB greater-than, results in RET
+		self.RET = ({[true]=1,[false]=0})[self.A > self.B]
+		return 1;
+	end;
 
 	[0xff]=function(self) --  HLT # halts the machine
 		self.state = 'halt';
