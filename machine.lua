@@ -35,7 +35,6 @@ local cr_tbl = {[0x0]='PRM', [0x1]='A',   [0x2]='B', [0x3]='ACC', [0x4]='RET',
 
 -------------------------------------------------------------------------
 -- private helper functions
-
 -- printf, as per C
 local function printf(...)
 	print(string.format(...))
@@ -46,14 +45,21 @@ local function writef(...)
 	io.write(string.format(...))
 end
 
+local function alert(c, m)
+	if not c then print(m) end
+end
+
 -- takes a formatted free-register byte,and returns a pair of register names
-local function convreg(n)
+local function convreg(self, n)
 	local mf=math.floor
 	local a, b = mf(n/16), mf(n%16)
 	a, b =cr_tbl[a], cr_tbl[b]
-	assert(a, ("Illegal High Register in byte: %02x"):format(n))
-	assert(b, ("Illegal Low Register in byte: %02x"):format(n))
 	
+	if not (a and b) then
+		self:signal(SIG_ILLEGAL_INSTRUCTION)
+		alert(a, ("Illegal High Register in byte: %02x"):format(n))
+		alert(b, ("Illegal Low Register in byte: %02x"):format(n))
+	end
 	return a, b
 end
 
@@ -92,7 +98,7 @@ _M.iset = {
 		return 1;
 	end;
 	[0x02]=function(self) --  MOV &R:&R # indirect free-register move
-		local a, b = convreg(self.memory[self.IP+1])
+		local a, b = convreg(self, self.memory[self.IP+1])
 		self.memory[self[b]] = self.memory[self[a]]
 		return 2;
 	end;
@@ -112,12 +118,12 @@ _M.iset = {
 		return 2;
 	end;
 	[0x06]=function(self) --  ADD R:R -> ACC # free-register ADD, results in ACC
-		local a, b = convreg(self.memory[self.IP+1])
+		local a, b = convreg(self, self.memory[self.IP+1])
 		self.ACC = self[a] + self[b]
 		return 2;
 	end;	
 	[0x07]=function(self) --  SWP R:R # Free-register swap
-		local a, b = convreg(self.memory[self.IP+1])
+		local a, b = convreg(self, self.memory[self.IP+1])
 		self[a], self[b] = self[b], self[a]
 		return 2;
 	end;	
@@ -149,7 +155,7 @@ _M.iset = {
 		return 1;
 	end;
 	[0x0e]=function(self) --  MNZ RET, R, &nn # free-register conditional move to literal address
-		local a, b = convreg(self.memory[self.IP+1])
+		local a, b = convreg(self, self.memory[self.IP+1])
 
 		if a then
 			self.memory[self.memory[self.IP+1]] = self[b]
@@ -157,7 +163,7 @@ _M.iset = {
 		return 3;
 	end;
 	[0x0f]=function(self) --  MOV R:R # free-register move
-		local a, b = convreg(self.memory[self.IP+1])
+		local a, b = convreg(self, self.memory[self.IP+1])
 		self[b] = self[a]
 		return 2;
 	end;
@@ -166,12 +172,12 @@ _M.iset = {
 		return 1;
 	end;
 	[0xa1]=function(self) --  SHW R # Free-register show
-		local a, b = convreg(self.memory[self.IP+1])
+		local a, b = convreg(self, self.memory[self.IP+1])
 		print(a..": "..self[a])
 		return 2;
 	end;
 	[0xa2]=function(self) --  DIV R, R # Free-register divide
-		local a, b = convreg(self.memory[self.IP+1])
+		local a, b = convreg(self, self.memory[self.IP+1])
 		if self.b == 0 then self:signal(SIG_DIV0) end
 		self.RET = round((self[a] / self[b])%256)
 		return 2;
@@ -248,7 +254,6 @@ end
 -- as two parms (start, data) it loads the data into the given address
 function _M:load(start, data)
 	if data == nil then data, start = start, 0 end
---	assert(type(data)~="string", "Support for loading strings is not yet implemented")
 	assert(type(data)=='table' or type(data)=='string', "Invalid loadable data parm")
 	
 	if type(data)=='string' then data=stringtodata(data) end
@@ -269,7 +274,10 @@ function _M:cycle(n)
 	local ins, adv
 	for i=1,n do
 		ins = self.memory[self.IP]
-		assert(self.iset[ins], ("Invalid instruction at address 0x%02x : %02x"):format(self.IP, ins))
+		if not self.iset[ins]
+			alert(false, ("Invalid instruction at address 0x%02x : %02x"):format(self.IP, ins))
+			self:signal(SIG_INVALID_INSTRUCTION)
+		end
 
 		self.IP = self.iset[ins](self) + self.IP -- order is important here.
 		self.IP = self.IP % 256
