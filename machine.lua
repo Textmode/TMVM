@@ -1,4 +1,6 @@
 
+local bitfield = require "bitfield"
+
 local _M = {_NAME="machine", number=0}
 
 local _MT = {__index=_M}
@@ -165,6 +167,26 @@ _M.iset = {
 	[0x0f]=function(self) --  MOV R:R # free-register move
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self[b] = self[a]
+		return 2;
+	end;
+	[0x10]=function(self) --  NOT R -> R # free-register NOT in:out
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self[b] = bitfield:new((self[a], 8):NOT()
+		return 2;
+	end;
+	[0x11]=function(self) --  AND R:R ->RET # free-register AND
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.RET = bitfield:new((self[a], 8):AND(self[b])
+		return 2;
+	end;
+	[0x12]=function(self) --  OR R:R ->RET # free-register OR
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.RET = bitfield:new((self[a], 8):OR(self[b])
+		return 2;
+	end;
+	[0x13]=function(self) --  XOR R:R ->RET # free-register XOR
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.RET = bitfield:new((self[a], 8):XOR(self[b])
 		return 2;
 	end;
 	[0xa0]=function(self) --  EQL .A:.B -> RET # fixed-register AB equals, results in RET

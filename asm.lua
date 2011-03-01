@@ -252,6 +252,40 @@ local encoders = {
 		end		
 		error("unhandled JNZ form!")
 	end;
+	
+	NOT = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
+		assert(aa and ba, "LES only works with absolute registers")
+		
+		return string.char(0x10, reg_encode(av, bv))
+	end;
+	AND = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
+		assert(aa and ba, "LES only works with absolute registers")
+		
+		return string.char(0x11, reg_encode(av, bv))
+	end;
+	OR = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
+		assert(aa and ba, "LES only works with absolute registers")
+		
+		return string.char(0x12, reg_encode(av, bv))
+	end;
+	XOR = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
+		assert(aa and ba, "LES only works with absolute registers")
+		
+		return string.char(0x13, reg_encode(av, bv))
+	end;
+
 }
 
 -----
