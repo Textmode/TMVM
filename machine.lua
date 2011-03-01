@@ -376,7 +376,7 @@ _MT.__call = _M.run
 
 
 -- possibly clever shit
-if arg and arg[0] and (arg[0]='machine.lua' or arg[0]='machine') then
+if arg and arg[0] and (arg[0]=='machine.lua' or arg[0]=='machine') then
 	print("Begining...")
 	local machnum = 1
 	local machs = {}
