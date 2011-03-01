@@ -34,7 +34,7 @@ function _MT.GET(self, n)
 	return self.value % (2*bin(n)) >= bin(n)
 end
 
-_MT.__index = _M.GET --(self, idx, val)
+_MT.__index = _M.GET --(self, idx)
 
 function _M.SET(self, n, v)
 	assert(n > 0, "Cannot set imaginary bits.")
@@ -95,15 +95,15 @@ function _M:XOR(n, y)
 end
 
 function _M.NOT(n)
-	n = (n and isbf(n)) or _M:new(n)
+	n = (isbf(n) and n) or _M:new(n)
 	local r = (2^n.width - 1) - n.value
 	a.value = r
 	return r
 end
 
 function _M.OR(a,b)
-	a = a and isbf(a) or _M:new(a)
-	b = b and isbf(b) or _M:new(b)
+	a = (isbf(a) and a) or _M:new(a)
+	b = (isbf(b) and b) or _M:new(b)
 	local max = (2^a.width - 1)
 	local r = max - _M.AND(max - a, max - b)
 	a.value = r
@@ -111,37 +111,43 @@ function _M.OR(a,b)
 end
 
 function _M.AND(a,b)
-	a = a and isbf(a) or _M:new(a)
-	b = b and isbf(b) or _M:new(b)
+	a = (isbf(a) and a) or _M:new(a)
+	b = (isbf(b) and b) or _M:new(b)
 	local r = ((a+b) - _M:XOR(a, b))/2
 	a.value = r
 	return r
 end
 
 function _M.NAND(a,b)
-	a = a and isbf(a) or _M:new(a)
-	b = b and isbf(b) or _M:new(b)
+	a = (isbf(a) and a) or _M:new(a)
+	b = (isbf(b) and b) or _M:new(b)
 	local r = _M.NOT(_M.AND(a, b))
 	a.value = r
 	return r
 end
 
 function _M.NOR(a,b)
-	a = a and isbf(a) or _M:new(a)
-	b = b and isbf(b) or _M:new(b)
+	a = (isbf(a) and a) or _M:new(a)
+	b = (isbf(b) and b) or _M:new(b)
 	local r = _M.NOT(_M.OR(a, b))
 	a.value = r
 	return r
 end
 
 function _M.NXOR(a,b)
-	a = a and isbf(a) or _M:new(a)
-	b = b and isbf(b) or _M:new(b)
+	a = (isbf(a) and a) or _M:new(a)
+	b = (isbf(b) and b) or _M:new(b)
 	local r = _M.NOT(_M.XOR(a, b))
 	a.value = r
 	return r
 end
 
+function _M.shift(a, n, sinex)
+	a = (isbf(a) and a) or _M:new(a)
+	local r = a.value * (2^n - 1)
+	a.value = r
+	return r
+end
 
 -------------------------------------------------------------------------
 -- MODULE TAIL
