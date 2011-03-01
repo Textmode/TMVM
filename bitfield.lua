@@ -137,12 +137,13 @@ function _M.shift(a, n, sinex)
 			r = r+r
 		end
 	else -- less than 0, shift right
-		local s = a[a.width]
 		local flr = math.floor
-		n = n+1
-		for i=1,n do
+		local s = a[a.width]
+
+		for i=1,math.abs(n) do
 			r = flr(r/2)
 		end
+		
 		if sinex then
 			a.value = r
 			a[a.width] = s
