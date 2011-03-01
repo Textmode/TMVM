@@ -9,6 +9,7 @@ local inf = 1/0
 
 _M.width = 16
 
+-- checks if a is a bitfield table, or not.
 local function isbf(a)
 	return (type(a)=='table' and a._TYPE=='bitfield') and true or false
 end
@@ -19,7 +20,13 @@ local function bin(n)
   return 2^(n-1)
 end
 
-
+-- Creates and returns a new bitfield. If opt_num is provided, the initial
+--  value of the bitfield will be the binary representation of that number,
+--  otherwise it will be zero. If opt_width is provided t will be used as 
+--  the effective bitwidth of the bitfield, otherwise it will default to 
+--  16 bits.
+--
+-- Returns: bitfield
 function _M:new(n, opt_width)
 	n = (type(n)=='number' and n) or 0
 	local b = {value = n, _TYPE = 'bitfield', width = opt_width or _M.width}
@@ -27,6 +34,11 @@ function _M:new(n, opt_width)
 	return b
 end
 
+-- returns true if the nth bit is set, otherwise returns false. if a bit
+--  outside the range of the bitfield's width is requested, it returns nil
+--  instead (which is also logically false)
+-- 
+-- Returns: bit
 function _M.GET(self, n)
 	if type(n) ~= 'number' then return _M[n] end
 	if n < 0 then return nil end
@@ -36,6 +48,9 @@ end
 
 _MT.__index = _M.GET --(self, idx)
 
+-- Sets the nth bit of bf to the truth value of v
+-- 
+-- Returns: (nothing)
 function _M.SET(self, n, v)
 	assert(n > 0, "Cannot set imaginary bits.")
 	n = bin(n)
@@ -59,6 +74,10 @@ end
 
 _MT.__newindex = _M.SET --(self, idx, val)
 
+-- Returns a string representing the value contained in the bitfield in
+--  binary.
+--
+-- Returns: string
 function _MT.__tostring(self)
 	local s ={}
 	for i=self.width,1,-1 do s[#s+1]=({[true]='1', [false]='0'})[self[i]] end
@@ -66,7 +85,14 @@ function _MT.__tostring(self)
 	return table.concat(s)
 end
 
---(based on code from [ http://lua-users.org/wiki/BitUtils ]
+-- XORs the value of bf with b. Additionally returns the resulting value.
+--
+--    0 XOR 0 -> 0
+--    0 XOR 1 -> 1
+--    1 XOR 0 -> 1
+--    1 XOR 1 -> 0
+-- 
+-- returns: num
 function _M.XOR(a, b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
@@ -79,6 +105,12 @@ function _M.XOR(a, b)
 	return a.value
 end
 
+-- Negates the value of a. Additionally returns the resulting value
+--
+--    NOT 1 -> 0
+--    NOT 0 -> 1
+--
+-- returns: num
 function _M.NOT(n)
 	n = (isbf(n) and n) or _M:new(n)
 	local r = (2^n.width - 1) - n.value
@@ -86,6 +118,14 @@ function _M.NOT(n)
 	return n.value
 end
 
+-- ORs the value of a with b. Additionally returns the resulting value.
+--
+--    0 OR 0 -> 0
+--    0 OR 1 -> 1
+--    1 OR 0 -> 1
+--    1 OR 1 -> 1
+--
+-- Returns: num
 function _M.OR(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
@@ -95,6 +135,14 @@ function _M.OR(a,b)
 	return a.value
 end
 
+-- ANDs the value of a with b. Additionally returns the resulting value.
+--
+--    0 AND 0 -> 0
+--    0 AND 1 -> 0
+--    1 AND 0 -> 0
+--    1 AND 1 -> 1
+--
+-- Returns: num
 function _M.AND(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
@@ -103,6 +151,14 @@ function _M.AND(a,b)
 	return a.value
 end
 
+-- NANDs the value of a with b. Additionally returns the resulting value.
+--
+--    0 NAND 0 -> 1
+--    0 NAND 1 -> 1
+--    1 NAND 0 -> 1
+--    1 NAND 1 -> 0
+--
+-- Returns: num
 function _M.NAND(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
@@ -111,6 +167,14 @@ function _M.NAND(a,b)
 	return a.value
 end
 
+-- NORs the value of a with b. Additionally returns the resulting value.
+--
+--    0 NOR 0 -> 1
+--    0 NOR 1 -> 0
+--    1 NOR 0 -> 0
+--    1 NOR 1 -> 0
+--
+-- Returns: num
 function _M.NOR(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
@@ -119,6 +183,14 @@ function _M.NOR(a,b)
 	return a.value
 end
 
+-- XNORs the value of a with b. Additionally returns the resulting value.
+-- 
+--    0 XNOR 0 -> 1
+--    0 XNOR 1 -> 0
+--    1 XNOR 0 -> 0
+--    1 XNOR 1 -> 1
+--
+-- Return: num
 function _M.XNOR(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
@@ -127,6 +199,11 @@ function _M.XNOR(a,b)
 	return a.value
 end
 
+-- Shifts the value of a by n. Additionally returns the resulting value.
+--  Positive values shift left, negative values shift right. if sign-ext
+--  is true, then the sign bit will be extended during a right-shift.
+--
+-- Returns: num
 function _M.shift(a, n, sinex)
 	a = (isbf(a) and a) or _M:new(a)
 	if n == 0 then return a.value end
