@@ -285,6 +285,30 @@ local encoders = {
 		
 		return string.char(0x13, reg_encode(av, bv))
 	end;
+	SHL = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "SHL only works with absolute registers")
+		assert(aa and ba, "SHL only works with absolute registers")
+		
+		return string.char(0x14, reg_encode(av, bv))
+	end;
+	SHR = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "SHR only works with absolute registers")
+		assert(aa and ba, "SHR only works with absolute registers")
+		
+		return string.char(0x15, reg_encode(av, bv))
+	end;
+	SRE = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "SRE only works with absolute registers")
+		assert(aa and ba, "SRE only works with absolute registers")
+		
+		return string.char(0x16, reg_encode(av, bv))
+	end;
 
 }
 
