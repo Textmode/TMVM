@@ -56,7 +56,7 @@ local encoders = {
 		local bf, ba, bv = parm(b)
 		
 		if af == 'register' and bf == 'register' then -- free-register form
-			if aa == true and aa == true then -- pure register form
+			if aa == true and ba == true then -- pure register form
 				return string.char(0x0f, reg_encode(av, bv))
 			elseif aa == false and ba == false then --pure addressed register form
 				return string.char(0x02, reg_encode(av, bv))
