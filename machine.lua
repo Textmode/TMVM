@@ -121,7 +121,7 @@ _M.iset = {
 	end;
 	[0x06]=function(self) --  ADD R:R -> ACC # free-register ADD, results in ACC
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self.ACC = self[a] + self[b]
+		self.ACC = self[a] + self[b] % 256
 		return 2;
 	end;	
 	[0x07]=function(self) --  SWP R:R # Free-register swap
@@ -134,7 +134,7 @@ _M.iset = {
 		return 1;
 	end;	
 	[0x09]=function(self) --  ADD .A:.B -> ACC # fixed-register AB ADD, results in ACC
-		self.ACC = self.A + self.B
+		self.ACC = self.A + self.B % 256
 		return 1;
 	end;	
 	[0x0a]=function(self) --  SHW .A # fixed register Show A
@@ -219,7 +219,7 @@ _M.iset = {
 	[0xa2]=function(self) --  DIV R, R # Free-register divide
 		local a, b = convreg(self, self.memory[self.IP+1])
 		if self.b == 0 then self:signal(SIG_DIV0) end
-		self.RET = round((self[a] / self[b])%256)
+		self.RET = round((self[a] / self[b]) % 256)
 		return 2;
 	end;
 	[0xa3]=function(self) --  GTR .A:.B -> RET # Fixed-register AB greater-than, results in RET
