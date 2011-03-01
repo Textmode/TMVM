@@ -144,13 +144,13 @@ test:newsubsection("NOR")
 
 test:newsubsection("XNOR")
 	test("0 XNOR 0 (simple)",
-		"local b = bitfield:new(0, 1); b:NOR(0); return tostring(b)", '1b')
+		"local b = bitfield:new(0, 1); b:XNOR(0); return tostring(b)", '1b')
 	test("0 XNOR 1 (simple)",
-		"local b = bitfield:new(0, 1); b:NOR(1); return tostring(b)", '0b')
+		"local b = bitfield:new(0, 1); b:XNOR(1); return tostring(b)", '0b')
 	test("1 XNOR 0 (simple)",
-		"local b = bitfield:new(1, 1); b:NOR(0); return tostring(b)", '0b')
+		"local b = bitfield:new(1, 1); b:XNOR(0); return tostring(b)", '0b')
 	test("1 XNOR 1 (simple)",
-		"local b = bitfield:new(1, 1); b:NOR(1); return tostring(b)", '1b')
+		"local b = bitfield:new(1, 1); b:XNOR(1); return tostring(b)", '1b')
 
 test:newsubsection("shifts")
 	test("single shift left (simple)",
