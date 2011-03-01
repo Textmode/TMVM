@@ -61,15 +61,16 @@ _MT.__newindex = _M.SET --(self, idx, val)
 
 function _MT.__tostring(self)
 	local s ={}
-	for i=self.width,1,-1 do s[#s+1]=({[true]='1', [false]='0'})[b[i]] end
+	for i=self.width,1,-1 do s[#s+1]=({[true]='1', [false]='0'})[self[i]] end
 	s[#s+1]="b"
 	return table.concat(s)
 end
 
 --(based on code from [ http://lua-users.org/wiki/BitUtils ]
-function _M:XOR(n, y)
-	local x,width = n, 32
-	if isbf(n) then x,width = n.value, n.width end
+function _M:XOR(a, b)
+	local x,width = a, 32
+	if isbf(a) then x,width = a.value, a.width end
+	if isbf(b) then y = b.value end
 	
 	local z = 0
 	for i = 0, width-1 do
@@ -90,23 +91,23 @@ function _M:XOR(n, y)
 		x = x / 2
 	end
 	
-	z = z % bin(a.width+1)
-	if isbf(n) then n.value = z end
+	z = z % bin(width+1)
+	if isbf(a) then a.value = z end
 	return z
 end
 
 function _M.NOT(n)
 	n = (isbf(n) and n) or _M:new(n)
 	local r = (2^n.width - 1) - n.value
-	a.value = r % bin(a.width+1)
-	return a.value
+	n.value = r % bin(n.width+1)
+	return n.value
 end
 
 function _M.OR(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
 	local max = (2^a.width - 1)
-	local r = max - _M.AND(max - a, max - b)
+	local r = max - _M.AND(max - a.value, max - b.value)
 	a.value = r % bin(a.width+1)
 	return a.value
 end
@@ -114,7 +115,7 @@ end
 function _M.AND(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
-	local r = ((a+b) - _M:XOR(a, b))/2
+	local r = ((a.value+b.value) - _M:XOR(a, b))/2
 	a.value = r % bin(a.width+1)
 	return a.value
 end
@@ -160,7 +161,7 @@ function _M.shift(a, n, sinex)
 		end
 		if sinex then a[a.width] = s end
 	end
-	a.value = r % bin(a.width+1)
+	a.value = math.floor(r % bin(a.width+1))
 	return a.value
 end
 
