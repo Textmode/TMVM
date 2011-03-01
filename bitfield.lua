@@ -10,7 +10,7 @@ local inf = 1/0
 _M.width = 16
 
 local function isbf(a)
-	return type(a)=='table' and a._TYPE=='bitfield'
+	return (type(a)=='table' and a._TYPE=='bitfield') and true or false
 end
 
 -- I really shouldn't need this
@@ -67,33 +67,16 @@ function _MT.__tostring(self)
 end
 
 --(based on code from [ http://lua-users.org/wiki/BitUtils ]
-function _M:XOR(a, b)
-	local x,width = a, 32
-	if isbf(a) then x,width = a.value, a.width end
-	if isbf(b) then y = b.value end
+function _M.XOR(a, b)
+	a = (isbf(a) and a) or _M:new(a)
+	b = (isbf(b) and b) or _M:new(b)
 	
-	local z = 0
-	for i = 0, width-1 do
-		if (x % 2 == 0) then                      -- x had a '0' in bit i
-			if ( y % 2 == 1) then                  -- y had a '1' in bit i
-				y = y - 1 
-				z = z + 2 ^ i                       -- set bit i of z to '1' 
-			end
-		else                                      -- x had a '1' in bit i
-			x = x - 1
-			if (y % 2 == 0) then                   -- y had a '0' in bit i
-				z = z + 2 ^ i                       -- set bit i of z to '1' 
-			else
-				y = y - 1 
-			end
-		end
-		y = y / 2
-		x = x / 2
+	for i = 1, a.width do 
+		a[i] = a[i] ~= b[i]
 	end
 	
-	z = z % bin(width+1)
-	if isbf(a) then a.value = z end
-	return z
+	a.value = a.value % bin(a.width+1)
+	return a.value
 end
 
 function _M.NOT(n)
@@ -115,7 +98,7 @@ end
 function _M.AND(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
-	local r = ((a.value+b.value) - _M:XOR(a, b))/2
+	local r = ((a.value+b.value) - _M.XOR(a, b))/2
 	a.value = r % bin(a.width+1)
 	return a.value
 end
@@ -153,13 +136,18 @@ function _M.shift(a, n, sinex)
 		for i=1,n do
 			r = r+r
 		end
-	else
+	else -- less than 0, shift right
 		local s = a[a.width]
+		local flr = math.floor
 		n = n+1
 		for i=1,n do
-			r = r/2
+			r = flr(r/2)
 		end
-		if sinex then a[a.width] = s end
+		if sinex then
+			a.value = r
+			a[a.width] = s
+			r = a.value
+		end
 	end
 	a.value = math.floor(r % bin(a.width+1))
 	return a.value
