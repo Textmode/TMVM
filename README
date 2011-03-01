@@ -20,10 +20,13 @@ TMVM is created by DMB/Textmode, while ignoring the well thought-out
  be very dubious in quality and use.
 
 
+	IRC: #TMVM on irc.freenode.org:8001
+	Project: https://github.com/Textmode/TMVM
+
 == Requirements
 	Lua 5.1 or better.
 	A sense of humor.
-
+	
 == Usage
 
 TMVM is divided into two basic parts; the machine, and the asm.
