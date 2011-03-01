@@ -73,7 +73,7 @@ test:newsubsection("Core")
 	test("nil == false", 
 		"return nil", false)
 
-
+-------------------------------------------------------------------------
 test:newsection("Bitfield")
 
 bitfield = require 'bitfield'
@@ -163,6 +163,37 @@ test:newsubsection("shifts")
 		"local b = bitfield:new(16); b:shift(-4); return b.value", 1)
 
 -------------------------------------------------------------------------
+test:newsection("FUASSM")
+require 'asm'
+
+test:newsubsection("Parsing")
+	test("FUASSM fails", "return 'junk'", "useful")
+
+test:newsubsection("encoding")
+	test("FUASSM fails", "return 'meh'", "good")
+
+test:newsection("Machine")
+
+require 'machine'
+
+test:newsubsection("Opcodes")
+	test("MNZ, conditional set - true",
+		[=[
+		local m = machine:new(1)
+		testp = {0x05, 0x01, 0x08, 0x05, 0x01, 0xa0, 0x0e, 0x41, 0x2a, 0xff}
+		m:load(testp)
+		m:cycle(10)
+		return m.memory[42]
+		]=], 1)
+	test("MNZ, conditional set - false",
+		[=[
+		local m = machine:new(1)
+		testp = {0x05, 0x01, 0x08, 0x00, 0x00, 0xa0, 0x0e, 0x41, 0x2a, 0xff}
+		m:load(testp)
+		m:cycle(10)
+		return m.memory[42]
+		]=], 1)
+
 
 
 -------------------------------------------------------------------------
