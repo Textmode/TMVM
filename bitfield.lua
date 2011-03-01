@@ -27,7 +27,7 @@ function _M:new(n, opt_width)
 	return b
 end
 
-function _MT.GET(self, n)
+function _M.GET(self, n)
 	if type(n) ~= 'number' then return _M[n] end
 	if n < 0 then return nil end
 
@@ -90,6 +90,7 @@ function _M:XOR(n, y)
 		x = x / 2
 	end
 	
+	z = z % bin(a.width+1)
 	if isbf(n) then n.value = z end
 	return z
 end
@@ -97,8 +98,8 @@ end
 function _M.NOT(n)
 	n = (isbf(n) and n) or _M:new(n)
 	local r = (2^n.width - 1) - n.value
-	a.value = r
-	return r
+	a.value = r % bin(a.width+1)
+	return a.value
 end
 
 function _M.OR(a,b)
@@ -106,47 +107,61 @@ function _M.OR(a,b)
 	b = (isbf(b) and b) or _M:new(b)
 	local max = (2^a.width - 1)
 	local r = max - _M.AND(max - a, max - b)
-	a.value = r
-	return r
+	a.value = r % bin(a.width+1)
+	return a.value
 end
 
 function _M.AND(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
 	local r = ((a+b) - _M:XOR(a, b))/2
-	a.value = r
-	return r
+	a.value = r % bin(a.width+1)
+	return a.value
 end
 
 function _M.NAND(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
 	local r = _M.NOT(_M.AND(a, b))
-	a.value = r
-	return r
+	a.value = r % bin(a.width+1)
+	return a.value
 end
 
 function _M.NOR(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
 	local r = _M.NOT(_M.OR(a, b))
-	a.value = r
-	return r
+	a.value = r % bin(a.width+1)
+	return a.value
 end
 
 function _M.NXOR(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
 	local r = _M.NOT(_M.XOR(a, b))
-	a.value = r
-	return r
+	a.value = r % bin(a.width+1)
+	return a.value
 end
 
 function _M.shift(a, n, sinex)
 	a = (isbf(a) and a) or _M:new(a)
-	local r = a.value * (2^n - 1)
-	a.value = r
-	return r
+	if n == 0 then return a.value end
+
+	local r = a.value
+	if n > 0 then 
+		for i=1,n do
+			r = r+r
+		end
+	else
+		local s = a[a.width]
+		n = n+1
+		for i=1,n do
+			r = r/2
+		end
+		if sinex then a[a.width] = s end
+	end
+	a.value = r % bin(a.width+1)
+	return a.value
 end
 
 -------------------------------------------------------------------------
