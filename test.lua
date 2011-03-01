@@ -14,6 +14,7 @@ function test:verse(t, short)
 end
 
 function test:__call(name, case, expected)
+	self.test.num = self.test.num+1
 	local t, ret = loadstring(case, self:verse(name, true))
 	if t then
 		t, ret = pcall(t)
@@ -43,13 +44,13 @@ end
 function test:newsection(name)
 	self.section = {name=tostring(name), num=self.section.num+1}
 	self.subsection = {name="", num=0}
-	self.test = {num=0}
+	self.test.num=0
 	print(string.format("[%d] - %s", self.section.num, tostring(name)))
 end
 
 function test:newsubsection(name)
 	self.subsection = {name=tostring(name), num=self.subsection.num+1}
-	self.test = {num=0}
+	self.test.num=0
 	print(string.format("[%d.%d] - %s", self.section.num, self.subsection.num, tostring(name)))
 end
 
