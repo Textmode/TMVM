@@ -135,7 +135,7 @@ function _M.NOR(a,b)
 	return a.value
 end
 
-function _M.NXOR(a,b)
+function _M.XNOR(a,b)
 	a = (isbf(a) and a) or _M:new(a)
 	b = (isbf(b) and b) or _M:new(b)
 	local r = _M.NOT(_M.XOR(a, b))
