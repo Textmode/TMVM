@@ -156,11 +156,14 @@ _M.iset = {
 		self.RET = ({[true]=1,[false]=0})[self.A < self.B]
 		return 1;
 	end;
-	[0x0e]=function(self) --  MNZ RET, R, &nn # free-register conditional move to literal address
+	[0x0e]=function(self) --  MNZ R, R, &nn # free-register conditional move to literal address
 		local a, b = convreg(self, self.memory[self.IP+1])
-
-		if a then
-			self.memory[self.memory[self.IP+1]] = self[b]
+		local c = self.memory[self.IP+2]
+		
+		if a == 'PRM' or b == 'PRM' then
+			self:signal(SIG_ILLEGAL_INSTRUCTION)
+		elseif self[a] ~= 0 then
+			self.memory[c] = self[b]
 		end
 		return 3;
 	end;

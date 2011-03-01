@@ -246,11 +246,11 @@ local encoders = {
 		assert(aa and ba, "MNZ only supports absolute values at this time.")
 		
 		if bf == 'register' then 
-			return string.char(0x0e, reg_encode(av), bv)
+			return string.char(0x0e, reg_encode('RET', av), bv)
 		elseif bf == 'symbol' then
-			return string.char(0x0e, reg_encode(av), 0x00), true
+			return string.char(0x0e, reg_encode('RET', av), 0x00), true
 		end		
-		error("unhandled JNZ form!")
+		error("unhandled MNZ form!")
 	end;
 	
 	NOT = function(a, b)
