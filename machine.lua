@@ -174,37 +174,37 @@ _M.iset = {
 	end;
 	[0x10]=function(self) --  NOT R -> R # free-register NOT in:out
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self[b] = bitfield:new((self[a], 8):NOT()
+		self[b] = bitfield:new(self[a], 8):NOT()
 		return 2;
 	end;
 	[0x11]=function(self) --  AND R:R ->RET # free-register AND
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self.RET = bitfield:new((self[a], 8):AND(self[b])
+		self.RET = bitfield:new(self[a], 8):AND(self[b])
 		return 2;
 	end;
 	[0x12]=function(self) --  OR R:R ->RET # free-register OR
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self.RET = bitfield:new((self[a], 8):OR(self[b])
+		self.RET = bitfield:new(self[a], 8):OR(self[b])
 		return 2;
 	end;
 	[0x13]=function(self) --  XOR R:R ->RET # free-register XOR
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self.RET = bitfield:new((self[a], 8):XOR(self[b])
+		self.RET = bitfield:new(self[a], 8):XOR(self[b])
 		return 2;
 	end;
 	[0x14]=function(self) --  SHL R:R ->RET # free-register shift left
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self.RET = bitfield:new((self[a], 8):shift(self[b])
+		self.RET = bitfield:new(self[a], 8):shift(self[b])
 		return 2;
 	end;
 	[0x15]=function(self) --  SHR R:R ->RET # free-register shift right
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self.RET = bitfield:new((self[a], 8):shift(-self[b])
+		self.RET = bitfield:new(self[a], 8):shift(-self[b])
 		return 2;
 	end;
 	[0x16]=function(self) --  SRE R:R ->RET # free-register shift right w/ sign extension
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self.RET = bitfield:new((self[a], 8):shift(-self[b], true)
+		self.RET = bitfield:new(self[a], 8):shift(-self[b], true)
 		return 2;
 	end;
 	[0xa0]=function(self) --  EQL .A:.B -> RET # fixed-register AB equals, results in RET
