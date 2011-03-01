@@ -274,7 +274,7 @@ function _M:cycle(n)
 	local ins, adv
 	for i=1,n do
 		ins = self.memory[self.IP]
-		if not self.iset[ins]
+		if not self.iset[ins] then
 			alert(false, ("Invalid instruction at address 0x%02x : %02x"):format(self.IP, ins))
 			self:signal(SIG_INVALID_INSTRUCTION)
 		end
@@ -334,6 +334,38 @@ end
 -- set the default call for a machine to be Cycle
 _MT.__call = _M.run
 
+
+-- possibly clever shit
+if arg and arg[0] then
+	print("Begining...")
+	local machnum = 1
+	local machs = {}
+
+	local inf, outf, err = arg[1], arg[2], ""
+	
+	local tmp
+	for i=1,machnum do
+		tmp = _M:new()
+		assert(tmp, "Failed to create required machine")
+		machs[i] = tmp
+	end
+
+	local time, ntime, dt= os.time(), nil, nil
+	print("^C to stop...")
+	while true do
+		for i=1,#machs do
+			tmp = machs[i]
+			tmp:cycle(tmp.speed)
+		end
+		ntime = os.time()
+		dt = os.difftime(time, ntime)
+		if     dt < 1 then wait(1)
+		elseif dt > 1 then print("woops, too slow!")
+		end
+		time = ntime
+	end
+
+end
 
 -------------------------------------------------------------------------
 -- MODULE TAIL
