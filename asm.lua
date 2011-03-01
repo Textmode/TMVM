@@ -410,7 +410,7 @@ end
 
 
 -- possibly clever shit
-if arg and arg[0] then
+if arg and arg[0] and (arg[0]='asm.lua' or arg[0]='asm') then
 	print("Begining")
 
 	math.randomseed(os.time())
