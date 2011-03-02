@@ -76,7 +76,7 @@ local encoders = {
 		if af == 'register' and bf=='literal' then
 			if aa == true and ba == false then -- mixed push/set form
 				assert(av=="A", "MOV litteral from (not A) not implemented")
-				return string.char(0x03, tonumber(av))
+				return string.char(0x03, tonumber(bv))
 			end
 		end
 	end;
