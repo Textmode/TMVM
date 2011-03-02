@@ -342,7 +342,7 @@ function _M.scrub(s)
 			t[#t+1]=	s
 		end
 	end
-	
+	assert(t, "scrub is returning nothing")
 	return t
 end
 
@@ -358,13 +358,15 @@ function _M.load(fname)
 	local t = scrub(f:read('*a'))
 	f:close()
 	
+	assert(t, "load is returning nothing")
 	return t
 end
 
 -----
 -- takes a pre-parsed chunk, and returns a fully-assembled chunk as a
 --  string, suitable for saving or loading into a machine.
-function _M.parse(t)
+function _M.parse(t, verbose)
+	assert(t, "Parse has been given nothing")
 	local tos = tostring
 	local c,p = {}, {}
 	
@@ -374,9 +376,8 @@ function _M.parse(t)
 	local op, a, b
 	for i=1,#t do
 		op, a = string.match(t[i], "(%u*) *(.*)")
-		--print(a)
 		a, b = string.match(a, "([^%p%s]*)[,%s]?[,%s]?([^%p%s]*)")
-		--print(a, b)
+
 		if op == "" then op = nil end
 		if a  == "" then a  = nil end
 		if b  == "" then b  = nil end
@@ -391,7 +392,7 @@ function _M.parse(t)
 		op, a, b = c[i].op,c[i].a,c[i].b
 		if op then
 			assert(encoders[op], ("[line %d: %s %s,%s # Unknown instruction.]"):format(i, op, tos(a), tos(b)))
-			print(string.format("%s %s, %s", tos(op), tos(a), tos(b)))
+			if verbose then print(string.format("%s %s, %s", tos(op), tos(a), tos(b))) end
 			r, patch = encoders[op](a, b)
 			assert(r, ("[line %d: %s %s,%s # No valid reduction.]"):format(i, op, tos(a), tos(b)))
 
@@ -407,7 +408,7 @@ function _M.parse(t)
 	for j=1,#p do
 		i = p[j]
 		op, a, b = c[i].op,c[i].a,c[i].b
-		print(string.format("Patching %s %s, %s", tos(op), tos(a), tos(b)))
+		if verbose then print(string.format("Patching %s %s, %s", tos(op), tos(a), tos(b))) end
 		r, patch = encoders[op](a, b)
 		if r then
 			bin[i] = r
@@ -443,7 +444,7 @@ if arg and arg[0] and (arg[0]=='asm.lua' or arg[0]=='asm') then
 	
 	outf, err = io.open(outf, "w")
 	assert(outf, err)
-	chk = _M.parse(chk)
+	chk = _M.parse(chk, true)
 	outf:write(chk)
 	outf:close()
 	
