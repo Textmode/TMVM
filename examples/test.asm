@@ -6,7 +6,7 @@ SWP A, B
 MOV 1, A
 
 ; RET = A == B
-EQL A, B
+EQL A, B, RET
 
 ; Show RET
 MOV RET, A

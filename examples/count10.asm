@@ -14,7 +14,7 @@ SWP A,B
 
 ; put the accumulated value in A, and put A+B in ACC 
 MOV ACC,A
-ADD A,B		; result in ACC
+ADD A,B,ACC		; result in ACC
 
 ; put 10 in b, and acc in A. again, scenic route
 MOV 10,A
@@ -22,13 +22,13 @@ SWP A,B
 MOV ACC,A
 
 ; Set RET to 1 if A < B
-LES A,B
+LES A,B,RET
 
 ; show the result so far with our handy Debugging freind: SHoW
 SHW A
 
 ; if the test above passed, Set IP to 4 (MOV 1,A)
-JNZ 4
+JNZ RET,4
 
 ; Halt the machine, becuase we are selfish bastards who think of no one but ourselves
 HLT
