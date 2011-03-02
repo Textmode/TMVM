@@ -19,7 +19,7 @@ end
 local function parm(p)
 	assert(p, "Can't check nil parms!")
 	p = string.match(p, "%S+")
-	local form, abs, value = 'unk', not (p:sub(1, 1) == '&'), p	
+	local form, abs, value = 'unk', not (p:sub(1, 1) == '&'), p
 	p = p:match("&?(.*)")
 	
 	for i=1,#regs do
@@ -237,18 +237,30 @@ local encoders = {
 		symbols[a] = tonumber(b) or 0
 		return ""
 	end;
-	MNZ = function(a, b)
+	MNZ = function(a, b, c)
 		assert(a or b, "MNZ requires parms.")
-		local af, aa, av = parm(a)
-		local bf, ba, bv = parm(b)
-		assert(af == 'register', "Can only conditionally move from registers at this time.")
-		assert(bf=='literal' or bf == 'symbol', "Only constant set values supported at this time.")
-		assert(aa and ba, "MNZ only supports absolute values at this time.")
+		local af, aa, av
+		local bf, ba, bv
+		local cf, ca, cv
+
+		if a and b and c then
+			af, aa, av = parm(a)
+			bf, ba, bv = parm(b)
+			cf, ca, cv = parm(c)
+		else
+			af, aa, av = 'register', true, 'RET'
+			bf, ba, bv = parm(a)
+			cf, ca, cv = parm(b)
+		end
+		assert(af == 'register', "Can only test registers at this time")
+		assert(bf == 'register', "Can only conditionally move from registers at this time.")
+		assert(cf=='literal' or cf == 'symbol', "Only constant set values supported at this time.")
+		assert(aa and ba and ca, "MNZ only supports absolute values at this time.")
 		
 		if bf == 'register' then 
-			return string.char(0x0e, reg_encode('RET', av), bv)
+			return string.char(0x0e, reg_encode(av, bv), cv)
 		elseif bf == 'symbol' then
-			return string.char(0x0e, reg_encode('RET', av), 0x00), true
+			return string.char(0x0e, reg_encode(av, bv), 0x00), true
 		end		
 		error("unhandled MNZ form!")
 	end;
@@ -368,7 +380,7 @@ end
 function _M.parse(t, verbose)
 	assert(t, "Parse has been given nothing")
 	local tos = tostring
-	local c,p = {}, {}
+	local chk,p = {}, {}
 	
 	symbols = {}
 	
@@ -376,24 +388,25 @@ function _M.parse(t, verbose)
 	local op, a, b
 	for i=1,#t do
 		op, a = string.match(t[i], "(%u*) *(.*)")
-		a, b = string.match(a, "([^%p%s]*)[,%s]?[,%s]?([^%p%s]*)")
+		a, b, c = string.match(a, "(&?[^%p%s]*)[,%s]?[,%s]?(&?[^%p%s]*)[,%s]?[,%s]?(&?[^%p%s]*)")
 
 		if op == "" then op = nil end
 		if a  == "" then a  = nil end
 		if b  == "" then b  = nil end
-		c[i]={op=op, a=a, b=b}
+		if c  == "" then c  = nil end
+		chk[i]={op=op, a=a, b=b, c=c}
 	end
 	
 	-- encode into binary representations
 	local bin = {}
 	local op, a, b, r
 	len = 0
-	for i=1,#c do
-		op, a, b = c[i].op,c[i].a,c[i].b
+	for i=1,#chk do
+		op, a, b, c = chk[i].op,chk[i].a,chk[i].b,chk[i].c
 		if op then
 			assert(encoders[op], ("[line %d: %s %s,%s # Unknown instruction.]"):format(i, op, tos(a), tos(b)))
 			if verbose then print(string.format("%s %s, %s", tos(op), tos(a), tos(b))) end
-			r, patch = encoders[op](a, b)
+			r, patch = encoders[op](a, b, c)
 			assert(r, ("[line %d: %s %s,%s # No valid reduction.]"):format(i, op, tos(a), tos(b)))
 
 			bin[i] = r or ""
@@ -407,9 +420,9 @@ function _M.parse(t, verbose)
 	local i
 	for j=1,#p do
 		i = p[j]
-		op, a, b = c[i].op,c[i].a,c[i].b
+		op, a, b, c = chk[i].op,chk[i].a,chk[i].b,chk[i].c
 		if verbose then print(string.format("Patching %s %s, %s", tos(op), tos(a), tos(b))) end
-		r, patch = encoders[op](a, b)
+		r, patch = encoders[op](a, b, c)
 		if r then
 			bin[i] = r
 			len = len + #r
