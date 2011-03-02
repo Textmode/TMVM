@@ -245,7 +245,7 @@ local encoders = {
 		error("unhandled LRT form!")
 	end;
 	LBL = function(a, b, c)
-		assert(a, "LBL must be properly qualified: 'LBL adrsym,optsegsym")
+		assert(a and b, "LBL must be properly qualified: 'LBL adrsym,optsegsym")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(aa and ba, "Values may only be stored in build-time symbols")
