@@ -338,8 +338,9 @@ local encoders = {
 	end;
 	
 	NOT = function(a, b, c)
-		assert(a and not (b or c), "NOT must be properly qualified: 'NOT R1'")
+		assert(a and b and (not c), "NOT must be properly qualified: 'NOT R1'")
 		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(a)
 		assert(af == 'register' and bf == 'register', "NOT only works with absolute registers")
 		assert(aa and ba, "NOT only works with absolute registers")
 		
