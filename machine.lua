@@ -96,67 +96,96 @@ end
 --
 -- the long table of opcode-function pairs that drive this malformed beast.
 _M.iset = {
-	[0x00]=function(self) --  NOP # No OPeration, do nothing, etc.
+	-- NOP 
+	--  No OPeration, do nothing, etc.
+	[0x00]=function(self) 
 		return 1;
 	end;
-	[0x02]=function(self) --  MOV &R:&R # indirect free-register move
+	-- MOV &R:&R 
+	--  indirect free-register move
+	[0x02]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.memory[self[b]] = self.memory[self[a]]
 		return 2;
 	end;
-	[0x03]=function(self) --  MOV .A:&nn # Move A to addresss. 
+	-- MOV .A:&nn 
+	--  Move A to addresss. 
+	[0x03]=function(self) 
 		local point = self.memory[self.IP+1]
 		self.memory[point] = self.A
 		return 2;
 	end;
-	[0x04]=function(self) --  MOV &nn:.A # Put address contents into A
+	-- MOV &nn:.A 
+	--  Put address contents into A
+	[0x04]=function(self) 
 		local point = self.memory[self.IP+1]
 		self.A = self.memory[point]
 		return 2;
 	end;
-	[0x05]=function(self) --  MOV nn:.A	# put literal into A
+	-- MOV nn:.A
+	--  put literal into A
+	[0x05]=function(self) 
 		local point = self.memory[self.IP+1]
 		self.A = point
 		return 2;
 	end;
-	[0x06]=function(self) --  ADD R:R -> ACC # free-register ADD, results in ACC
+	-- ADD R:R -> .ACC 
+	--  free-register ADDition, results in ACC
+	[0x06]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.ACC = self[a] + self[b] % 256
 		return 2;
-	end;	
-	[0x07]=function(self) --  SWP R:R # Free-register swap
+	end;
+	-- SWP R:R 
+	--  Free-register swap
+	[0x07]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self[a], self[b] = self[b], self[a]
 		return 2;
 	end;	
-	[0x08]=function(self) --  SWP .A:.B (or SWP .B:.A ...) # fixed register AB swap
+	-- SWP .A:.B (or SWP .B:.A ...)
+	--  fixed register AB swap
+	[0x08]=function(self) 
 		self.A, self.B = self.B, self.A
 		return 1;
-	end;	
-	[0x09]=function(self) --  ADD .A:.B -> ACC # fixed-register AB ADD, results in ACC
+	end;
+	-- ADD .A:.B -> .ACC
+	--  fixed-register AB ADDition, results in ACC
+	[0x09]=function(self) 
 		self.ACC = self.A + self.B % 256
 		return 1;
 	end;	
-	[0x0a]=function(self) --  SHW .A # fixed register Show A
+	-- SHW .A
+	--  fixed register Show A
+	[0x0a]=function(self) 
 		print("A: "..self.A)
 		return 1;
 	end;
-	[0x0b]=function(self) --  JMP nn (or if you prefer, MOV nn:.IP) unconditional jump with literal address
+	-- JMP nn (or MOV  nn:.IP
+	--  unconditional jump with literal address
+	[0x0b]=function(self) 
 		self.IP = self.memory[self.IP+1]
 		return 0;
 	end;
-	[0x0c]=function(self) --  JNZ RET, nn (or MNZ RET, nn:.IP) # fixed-register RET conditional jump with literal address
-		if self.RET ~= 0 then
+	-- JNZ .RET, nn (or MNZ .RET, nn:.IP)
+	--  fixed-register RET conditional jump with literal address
+	[0x0c]=function(self)
+			if self.RET ~= 0 then
 			self.IP = self.memory[self.IP+1]
 			return 0
 		end
 		return 2;
 	end;
-	[0x0d]=function(self) --  LES .A:.B -> RET # Fixed-register AB less-than, results in RET
+	-- LES .A:.B -> .RET
+	--  Fixed-register AB less-than, results in RET
+	[0x0d]=function(self)
+	
 		self.RET = ({[true]=1,[false]=0})[self.A < self.B]
 		return 1;
 	end;
-	[0x0e]=function(self) --  MNZ R, R, &nn # free-register conditional move to literal address
+	-- MNZ R, R, &nn
+	--  free-register conditional move to literal address
+	[0x0e]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		local c = self.memory[self.IP+2]
 		
@@ -167,67 +196,92 @@ _M.iset = {
 		end
 		return 3;
 	end;
-	[0x0f]=function(self) --  MOV R:R # free-register move
+	-- MOV R:R
+	--  free-register move
+	[0x0f]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self[b] = self[a]
 		return 2;
 	end;
-	[0x10]=function(self) --  NOT R -> R # free-register NOT in:out
+	-- NOT R -> R
+	--  free-register Bitwise NOT in:out
+	[0x10]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self[b] = bitfield:new(self[a], 8):NOT()
 		return 2;
 	end;
-	[0x11]=function(self) --  AND R:R ->RET # free-register AND
+	-- AND R:R -> .RET
+	--  free-register bitwise AND
+	[0x11]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = bitfield:new(self[a], 8):AND(self[b])
 		return 2;
 	end;
-	[0x12]=function(self) --  OR R:R ->RET # free-register OR
+	-- OR R:R -> .RET
+	--  free-register bitwise OR
+	[0x12]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = bitfield:new(self[a], 8):OR(self[b])
 		return 2;
 	end;
-	[0x13]=function(self) --  XOR R:R ->RET # free-register XOR
+	-- XOR R:R -> .RET
+	--  free-register bitwise XOR
+	[0x13]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = bitfield:new(self[a], 8):XOR(self[b])
 		return 2;
 	end;
-	[0x14]=function(self) --  SHL R:R ->RET # free-register shift left
+	-- SHL R:R -> .RET
+	--  free-register shift left
+	[0x14]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = bitfield:new(self[a], 8):shift(self[b])
 		return 2;
 	end;
-	[0x15]=function(self) --  SHR R:R ->RET # free-register shift right
+	-- SHR R:R -> .RET
+	--  free-register shift right
+	[0x15]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = bitfield:new(self[a], 8):shift(-self[b])
 		return 2;
 	end;
-	[0x16]=function(self) --  SRE R:R ->RET # free-register shift right w/ sign extension
+	-- SRE R:R -> .RET
+	--  free-register shift right w/ sign extension
+	[0x16]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = bitfield:new(self[a], 8):shift(-self[b], true)
 		return 2;
 	end;
-	[0xa0]=function(self) --  EQL .A:.B -> RET # fixed-register AB equals, results in RET
+	-- EQL .A:.B -> .RET 
+	--  fixed-register AB equals, results in RET
+	[0xa0]=function(self) 
 		self.RET = ({[true]=1,[false]=0})[self.A == self.B]
 		return 1;
 	end;
-	[0xa1]=function(self) --  SHW R # Free-register show
+	-- SHW R 
+	--  Free-register show
+	[0xa1]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		print(a..": "..self[a])
 		return 2;
 	end;
-	[0xa2]=function(self) --  DIV R, R # Free-register divide
+	-- DIV R, R 
+	--  Free-register divide
+	[0xa2]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		if self.b == 0 then self:signal(SIG_DIV0) end
 		self.RET = round((self[a] / self[b]) % 256)
 		return 2;
 	end;
-	[0xa3]=function(self) --  GTR .A:.B -> RET # Fixed-register AB greater-than, results in RET
+	-- GTR .A:.B -> .RET 
+	--  Fixed-register AB greater-than, results in RET
+	[0xa3]=function(self) 
 		self.RET = ({[true]=1,[false]=0})[self.A > self.B]
 		return 1;
 	end;
-
-	[0xff]=function(self) --  HLT # halts the machine
+	-- HLT 
+	--  halts the machine
+	[0xff]=function(self) 
 		self.state = 'halt';
 		return 0;
 	end;
