@@ -252,6 +252,20 @@ _M.iset = {
 		self.RET = bitfield:new(self[a], 8):shift(-self[b], true)
 		return 2;
 	end;
+	-- IN R1 -> R2
+	--  free-register I/O port read
+	[0x17]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		--- what goes here?
+		return 2;
+	end;
+	-- OUT R1, R2
+	--  free-register I/O port write
+	[0x18]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		--- what goes here?
+		return 2;
+	end;
 	-- EQL .A:.B -> .RET 
 	--  fixed-register AB equals, results in RET
 	[0xa0]=function(self) 
