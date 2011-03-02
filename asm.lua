@@ -79,6 +79,21 @@ local encoders = {
 				return string.char(0x03, tonumber(bv))
 			end
 		end
+
+		if af == 'symbol' and bf=='register' then
+			if aa == true and ba == true then
+				assert(bv=="A", "MOV symbol to (not A) not implemented")
+				return string.char(0x05, tonumber(av))
+			elseif aa == false and ba == true then -- mixed get form
+				return string.char(0x04, 0x00), true
+			end
+		end
+		if af == 'register' and bf=='symbol' then
+			if aa == true and ba == false then -- mixed push/set form
+				assert(av=="A", "MOV symbol from (not A) not implemented")
+				return string.char(0x03, 0x00), true
+			end
+		end
 	end;
 	ADD = function(a, b, c)
 		assert(a and b and c, "ADD must be properly qualified: 'ADD R1,R2,ACC'")
