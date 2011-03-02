@@ -48,10 +48,11 @@ end
 
 local encoders = {
 	NOP = function(a, b, c)
-		assert(not (a or b), "NOP has no parms")
+		assert(not (a or b or c), "NOP must be properly qualified: 'NOP'")
 		return string.char(0x00)	
 	end;
 	MOV = function(a, b, c)
+		assert(a and b and not c, "MOV must be properly qualified: 'MOV P1,P2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		
@@ -79,12 +80,13 @@ local encoders = {
 		end
 	end;
 	ADD = function(a, b, c)
+		assert(a and b and c, "ADD must be properly qualified: 'ADD R1,R2,ACC'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "ADD only works with registers")
 		assert(aa and ba,  "ADD only works with absolute parms")
-		assert(cf == 'register' and ca and cv=='ACC', "SUB only supports absolute ACC as a destination")
+		assert(cf == 'register' and ca and cv=='ACC', "ADD only supports absolute ACC as a destination")
 		
 		if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
 			return string.char(0x09)
@@ -94,6 +96,7 @@ local encoders = {
 		error("unhandled ADD form!")
 	end;
 	SUB = function(a, b, c)
+		assert(a and b and c, "SUB must be properly qualified: 'SUB R1,R2,ACC'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
@@ -105,6 +108,7 @@ local encoders = {
 		return string.char(0x1a, reg_encode(av, bv))
 	end;
 	DIV = function(a, b, c)
+		assert(a and b and c, "DIV must be properly qualified: 'DIV R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
@@ -115,6 +119,7 @@ local encoders = {
 		return string.char(0xa1, reg_encode(av, bv))
 	end;
 	MUL = function(a, b, c)
+		assert(a and b and c, "MUL must be properly qualified: 'MUL R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
@@ -125,6 +130,7 @@ local encoders = {
 		return string.char(0x19, reg_encode(av, bv))
 	end;
 	SHW = function(a, b, c)
+		assert(a and not (b or c), "SHW must be properly qualified: 'SHW R'")
 		local af, aa, av = parm(a)
 		assert(af=='register' and aa, "SHW only presently works for absolute registers")
 		
@@ -136,10 +142,11 @@ local encoders = {
 	
 	end;
 	HLT = function(a, b, c)
-		assert(not (a or b or c), "HLT takes no parms")
+		assert(not (a or b or c), "HLT must be properly qualified: 'HLT'")
 		return string.char(0xff)
 	end;
 	SWP = function(a, b, c)
+		assert((a and b) and not c, "SWP must be properly qualified: 'SWP R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "SWP only works with registers")
@@ -153,10 +160,13 @@ local encoders = {
 		error("unhandled SWP form!")
 	end;
 	LES = function(a, b, c)
+		assert(a and b and c, "LES must be properly qualified: 'LES R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
 		assert(aa and ba, "LES only works with absolute registers")
+		assert(ca and cv=='RET', "LES may only place its result in RET")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x0d)
@@ -168,10 +178,13 @@ local encoders = {
 		error("unhandled LES form!")
 	end;
 	GTR = function(a, b, c)
+		assert(a and b and c, "GTR must be properly qualified: 'LES R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "GTR only works with absolute registers")
 		assert(aa and ba, "GTR only works with absolute registers")
+		assert(ca and cv=='RET', "GTR may only place its result in RET")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0xa3)
@@ -182,10 +195,13 @@ local encoders = {
 		end
 	end;
 	EQL = function(a, b, c)
+		assert(a and b and c, "EQL must be properly qualified: 'EQL R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "EQL only works with registers")
 		assert(aa and ba, "EQL only works with absolute registers")
+		assert(ca and cv=='RET', "EQL may only place its result in RET")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0xa0)
@@ -196,10 +212,13 @@ local encoders = {
 		error("unhandled LES form!")
 	end;
 	GTE = function(a, b, c)
+		assert(a and b and c, "GTE must be properly qualified: 'GTE R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "GTE only works with registers")
 		assert(aa and ba, "GTE only works with absolute registers")
+		assert(ca and cv=='RET', "GTE may only place its result in RET")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x08,0x0d,0x08) -- swap, lessthan, swap
@@ -209,10 +228,13 @@ local encoders = {
 		error("unhandled GRT form!")
 	end;
 	LTE = function(a, b, c)
+		assert(a and b and c, "LTE must be properly qualified: 'LTE R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "LTE only works with registers")
 		assert(aa and ba, "LTE only works with absolute registers")
+		assert(ca and cv=='RET', "GTE may only place its result in RET")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x08,0xa3,0x08) -- swap, lessthan, swap
@@ -222,29 +244,33 @@ local encoders = {
 		error("unhandled LRT form!")
 	end;
 	LBL = function(a, b, c)
-		assert((a or b), "LBL requires parms")
+		assert(a, "LBL must be properly qualified: 'LBL adrsym,optsegsym")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(aa and ba, "Values may only be stored in build-time symbols")
+		assert(af=='symbol' and bf=='symbol', "Values may only be stored in valid, unused, symbols")
 		
-		if a then symbols[a] = len%256 end
-		if b then symbols[b] = math.floor(len/256) end
+		if av then symbols[av] = len%256 end
+		if bv then symbols[bv] = math.floor(len/256) end
 		return ""
 	end;
 	JNZ = function(a, b, c)
-		assert(a or b, "JNZ requires parms.")
-		assert(not b, "JNZ only accepts one parm.")
+		assert(a and b and (not c), "JNZ must be properly qualified: 'JNZ RET,nn'")
 		local af, aa, av = parm(a)
-		assert(af=='literal' or af == 'symbol', "Only constant jump targets supported at this time.")
-		assert(aa, "JNZ only supports absolute (inline) jump targets at this time.")
+		local bf, ba, bv = parm(b)
+		assert(aa and av=='RET', "JNZ may only test RET at this time.")
+		assert(bf=='literal' or af == 'symbol', "Only constant jump targets supported at this time.")
+		assert(ba, "JNZ only supports absolute (inline) jump targets at this time.")
 		
-		if af == 'literal' then 
-			return string.char(0x0c, av)
-		elseif af == 'symbol' then
+		if bf == 'literal' then 
+			return string.char(0x0c, bv)
+		elseif bf == 'symbol' then
 			return string.char(0x0c, 0x00), true
 		end		
 		error("unhandled JNZ form!")
 	end;
 	JMP = function(a, b, c)
-		assert(a or b, "JMP requires parms.")
-		assert(not b, "JMP only accepts one parm.")
+		assert(a and not (b or c), "JMP must be properly qualified: 'JMP nn'")
 		local af, aa, av = parm(a)
 		assert(af=='literal' or af == 'symbol', "Only constant jump targets supported at this time.")
 		assert(aa, "JMP only supports absolute (inline) jump targets at this time.")
@@ -257,13 +283,18 @@ local encoders = {
 		error("unhandled JNZ form!")
 	end;
 	LET = function(a, b, c)
-		assert((a or b), "LBL requires parms")
-		
+		assert((a and b) and not c, "LET must be properly qualified: 'LET sym,nn'")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(aa and ba, "Values may only be stored in build-time symbols")
+		assert(af=='symbol', "Values may only be stored in valid, unused, symbols")
+		assert(bf=='literal', "only literals, or known symbols may be stored")
+
 		symbols[a] = tonumber(b) or 0
 		return ""
 	end;
 	MNZ = function(a, b, c)
-		assert(a or b, "MNZ requires parms.")
+		assert(a and b and c, "MNZ must be properly qualified: 'MNZ R1,R2,nn'")
 		local af, aa, av
 		local bf, ba, bv
 		local cf, ca, cv
@@ -291,38 +322,47 @@ local encoders = {
 	end;
 	
 	NOT = function(a, b, c)
+		assert(a and not (b or c), "NOT must be properly qualified: 'NOT R1'")
 		local af, aa, av = parm(a)
-		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
-		assert(aa and ba, "LES only works with absolute registers")
+		assert(aa and ba, "NOT only works with absolute registers")
 		
 		return string.char(0x10, reg_encode(av, bv))
 	end;
 	AND = function(a, b, c)
+		assert(a and b and c, "AND must be properly qualified: 'AND R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
-		assert(aa and ba, "LES only works with absolute registers")
+		assert(aa and ba, "AND only works with absolute registers")
+		assert(ca and cv=='RET', "AND may only place its result in RET")
 		
 		return string.char(0x11, reg_encode(av, bv))
 	end;
 	OR = function(a, b, c)
+		assert(a and b and c, "OR must be properly qualified: 'OR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
-		assert(aa and ba, "LES only works with absolute registers")
+		assert(aa and ba, "OR only works with absolute registers")
+		assert(ca and cv=='RET', "OR may only place its result in RET")
 		
 		return string.char(0x12, reg_encode(av, bv))
 	end;
 	XOR = function(a, b, c)
+		assert(a and b and c, "XOR must be properly qualified: 'XOR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
-		assert(aa and ba, "LES only works with absolute registers")
+		local cf, ca, cv = parm(c)
+		assert(af == 'register' and bf == 'register', "XOR only works with absolute registers")
+		assert(aa and ba, "XOR only works with absolute registers")
 		
 		return string.char(0x13, reg_encode(av, bv))
 	end;
 	SHL = function(a, b, c)
+		assert(a and b and not c, "SHL must be properly qualified: 'SHL R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "SHL only works with absolute registers")
@@ -331,6 +371,7 @@ local encoders = {
 		return string.char(0x14, reg_encode(av, bv))
 	end;
 	SHR = function(a, b, c)
+		assert(a and b and not c, "SHR must be properly qualified: 'SHR R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "SHR only works with absolute registers")
@@ -339,14 +380,17 @@ local encoders = {
 		return string.char(0x15, reg_encode(av, bv))
 	end;
 	SRE = function(a, b, c)
+		assert(a and b and not c, "SRE must be properly qualified: 'SRE R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "SRE only works with absolute registers")
 		assert(aa and ba, "SRE only works with absolute registers")
 		
 		return string.char(0x16, reg_encode(av, bv))
 	end;
 	IN = function(a, b, c)
+		assert(a and b and not c, "IN must be properly qualified: 'IN R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "IN only works with absolute registers")
@@ -355,6 +399,7 @@ local encoders = {
 		return string.char(0x17, reg_encode(av, bv))
 	end;
 	OUT = function(a, b, c)
+		assert(a and b and not c, "OUT must be properly qualified: 'OUT R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "OUT only works with absolute registers")
@@ -371,8 +416,7 @@ local encoders = {
 function _M.scrub(s)
 	local t = {}
 	s = s..'\n'
---	s = string.gsub(s, "\n\n", "\n") --in retrospect, keep lines
-	
+
 	for l in string.gmatch(s, "[^\n]*\n") do
 		s = string.match(l, "[^#;]*")
 		if s ~= "\n" and s ~= "" then 
