@@ -182,6 +182,8 @@ test:newsubsection("Build examples")
 		"local chk = asm.parse(asm.load('examples/show.asm')) return not not chk", true)
 	test("load 'test.asm'",
 		"local chk = asm.parse(asm.load('examples/test.asm')) return not not chk", true)
+	test("load 'mnz-test.asm'",
+		"local chk = asm.parse(asm.load('examples/mnz-test.asm')) return not not chk", true)
 
 
 test:newsection("Machine")
