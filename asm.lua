@@ -91,6 +91,17 @@ local encoders = {
 		end
 		error("unhandled ADD form!")
 	end;
+	SUB = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
+		assert(af == 'register' and bf == 'register', "ADD only works with registers")
+		assert(aa and ba,  "ADD only works with absolute parms")
+		assert(cf == 'register' and ca and cv=='ACC', "MUL only supports absolute ACC as a destination")
+		
+		 -- free-register form
+		return string.char(0x1a, reg_encode(av, bv))
+	end;
 	DIV = function(a, b)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -98,6 +109,16 @@ local encoders = {
 		assert(aa and ba,  "DIV only works with absolute parms")
 		
 		return string.char(0xa1, reg_encode(av, bv))
+	end;
+	MUL = function(a, b, c)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
+		assert(af == 'register' and bf == 'register', "MUL only works with registers")
+		assert(aa and ba,  "MUL only works with absolute parms")
+		assert(cf == 'register' and ca and cv=='RET', "MUL only supports absolute RET as a destination")
+		
+		return string.char(0x19, reg_encode(av, bv))
 	end;
 	SHW = function(a, b)
 		local af, aa, av = parm(a)
@@ -110,8 +131,8 @@ local encoders = {
 		end
 	
 	end;
-	HLT = function(a, b)
---		assert(not (a or b), "HLT has no parms")
+	HLT = function(a, b, c)
+		assert(not (a or b or c), "HLT takes no parms")
 		return string.char(0xff)
 	end;
 	SWP = function(a, b)

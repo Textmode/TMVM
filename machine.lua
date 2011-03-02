@@ -287,6 +287,19 @@ _M.iset = {
 		self:deviceWrite(self[a], self[b])
 		return 2;
 	end;
+	-- MUL R, R 
+	--  Free-register Multiply
+	[0x19]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.RET = round((self[a] * self[b]) % 256)
+		return 2;
+	end;
+	-- SUB .A:.B -> .ACC
+	--  fixed-register AB ADDition, results in ACC
+	[0x1a]=function(self) 
+		self.ACC = self.A - self.B % 256
+		return 1;
+	end;	
 	-- EQL .A:.B -> .RET 
 	--  fixed-register AB equals, results in RET
 	[0xa0]=function(self) 
