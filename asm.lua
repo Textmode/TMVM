@@ -194,7 +194,7 @@ local encoders = {
 		error("unhandled LES form!")
 	end;
 	GTR = function(a, b, c)
-		assert(a and b and c, "GTR must be properly qualified: 'LES R1,R2,RET'")
+		assert(a and b and c, "GTR must be properly qualified: 'GTR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
@@ -225,7 +225,7 @@ local encoders = {
 			
 			error("EQL is only currently defined in the form EQL .A,.B")
 		end
-		error("unhandled LES form!")
+		error("unhandled EQL form!")
 	end;
 	GTE = function(a, b, c)
 		assert(a and b and c, "GTE must be properly qualified: 'GTE R1,R2,RET'")
@@ -340,7 +340,7 @@ local encoders = {
 	NOT = function(a, b, c)
 		assert(a and not (b or c), "NOT must be properly qualified: 'NOT R1'")
 		local af, aa, av = parm(a)
-		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
+		assert(af == 'register' and bf == 'register', "NOT only works with absolute registers")
 		assert(aa and ba, "NOT only works with absolute registers")
 		
 		return string.char(0x10, reg_encode(av, bv))
@@ -350,7 +350,7 @@ local encoders = {
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
+		assert(af == 'register' and bf == 'register', "AND only works with absolute registers")
 		assert(aa and ba, "AND only works with absolute registers")
 		assert(ca and cv=='RET', "AND may only place its result in RET")
 		
@@ -361,7 +361,7 @@ local encoders = {
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
+		assert(af == 'register' and bf == 'register', "OR only works with absolute registers")
 		assert(aa and ba, "OR only works with absolute registers")
 		assert(ca and cv=='RET', "OR may only place its result in RET")
 		
