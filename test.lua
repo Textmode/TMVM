@@ -167,11 +167,22 @@ test:newsubsection("shifts")
 test:newsection("FUASSM")
 require 'asm'
 
-test:newsubsection("Parsing")
-	test("FUASSM fails", "return 'junk'", "useful")
+test:newsubsection("Overview")
+	test("FUASSM parsing", 
+		"return 'junk'", "useful")
+	test("FUASSM encoding",
+		"return 'meh'", "good")
 
-test:newsubsection("encoding")
-	test("FUASSM fails", "return 'meh'", "good")
+test:newsubsection("Build examples")
+	test("load 'count10.asm'",
+		"local chk = asm.parse(asm.load('examples/count10.asm')) return not not chk", true)
+	test("load 'jump.asm'",
+		"local chk = asm.parse(asm.load('examples/jump.asm')) return not not chk", true)
+	test("load 'show.asm'",
+		"local chk = asm.parse(asm.load('examples/show.asm')) return not not chk", true)
+	test("load 'test.asm'",
+		"local chk = asm.parse(asm.load('examples/test.asm')) return not not chk", true)
+
 
 test:newsection("Machine")
 
