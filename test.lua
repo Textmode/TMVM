@@ -174,6 +174,9 @@ test:newsubsection("Overview")
 		"return 'meh'", "good")
 
 test:newsubsection("Build examples")
+	test("load 'fuassm-test.asm'",
+		"local chk = asm.parse(asm.load('examples/fuassm-test.asm')) return #chk", 
+		5)
 	test("load 'count10.asm'",
 		"local chk = asm.parse(asm.load('examples/count10.asm')) return not not chk", true)
 	test("load 'jump.asm'",
