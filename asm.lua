@@ -81,8 +81,10 @@ local encoders = {
 	ADD = function(a, b)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "ADD only works with registers")
 		assert(aa and ba,  "ADD only works with absolute parms")
+		assert(cf == 'register' and ca and cv=='ACC', "SUB only supports absolute ACC as a destination")
 		
 		if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
 			return string.char(0x09)
@@ -95,9 +97,9 @@ local encoders = {
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "ADD only works with registers")
-		assert(aa and ba,  "ADD only works with absolute parms")
-		assert(cf == 'register' and ca and cv=='ACC', "MUL only supports absolute ACC as a destination")
+		assert(af == 'register' and bf == 'register', "SUB only works with registers")
+		assert(aa and ba,  "SUB only works with absolute parms")
+		assert(cf == 'register' and ca and cv=='ACC', "SUB only supports absolute ACC as a destination")
 		
 		 -- free-register form
 		return string.char(0x1a, reg_encode(av, bv))
@@ -105,8 +107,10 @@ local encoders = {
 	DIV = function(a, b)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "DIV only works with registers")
 		assert(aa and ba,  "DIV only works with absolute parms")
+		assert(cf == 'register' and ca and cv=='RET', "DIV only supports absolute RET as a destination")
 		
 		return string.char(0xa1, reg_encode(av, bv))
 	end;
