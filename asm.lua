@@ -405,9 +405,9 @@ function _M.parse(t, verbose)
 		op, a, b, c = chk[i].op,chk[i].a,chk[i].b,chk[i].c
 		if op then
 			assert(encoders[op], ("[line %d: %s %s,%s # Unknown instruction.]"):format(i, op, tos(a), tos(b)))
-			if verbose then print(string.format("%s %s, %s", tos(op), tos(a), tos(b))) end
+			if verbose then print(string.format("%s %s, %s, %s", tos(op), tos(a), tos(b), tos(c))) end
 			r, patch = encoders[op](a, b, c)
-			assert(r, ("[line %d: %s %s,%s # No valid reduction.]"):format(i, op, tos(a), tos(b)))
+			assert(r, ("[line %d: %s %s,%s,%s # No valid reduction.]"):format(i, op, tos(a), tos(b), tos(c)))
 
 			bin[i] = r or ""
 			len = len + #r
