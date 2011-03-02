@@ -154,7 +154,7 @@ _M.iset = {
 	--  free-register ADDition, results in ACC
 	[0x06]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self.ACC = self[a] + self[b] % 256
+		self.ACC = (self[a] + self[b]) % 256
 		return 2;
 	end;
 	-- SWP R:R 
@@ -173,7 +173,7 @@ _M.iset = {
 	-- ADD .A:.B -> .ACC
 	--  fixed-register AB ADDition, results in ACC
 	[0x09]=function(self) 
-		self.ACC = self.A + self.B % 256
+		self.ACC = (self.A + self.B) % 256
 		return 1;
 	end;	
 	-- SHW .A
@@ -297,7 +297,7 @@ _M.iset = {
 	-- SUB .A:.B -> .ACC
 	--  fixed-register AB ADDition, results in ACC
 	[0x1a]=function(self) 
-		self.ACC = self.A - self.B % 256
+		self.ACC = (self.A - self.B) % 256
 		return 1;
 	end;	
 	-- EQL .A:.B -> .RET 
