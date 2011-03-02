@@ -435,8 +435,8 @@ function _M.scrub(s)
 	s = s..'\n'
 
 	for l in string.gmatch(s, "[^\n]*\n") do
-		s = string.match(l, "[^#;]*")
-		if s ~= "\n" and s ~= "" then 
+		s = string.match(l, "[^#\"';]*")
+		if s ~= "\n" and s:match("(%S+)") then 
 			t[#t+1]=	s
 		end
 	end
