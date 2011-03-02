@@ -309,6 +309,22 @@ local encoders = {
 		
 		return string.char(0x16, reg_encode(av, bv))
 	end;
+	IN = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "IN only works with absolute registers")
+		assert(aa and ba, "IN only works with absolute registers")
+		
+		return string.char(0x17, reg_encode(av, bv))
+	end;
+	OUT = function(a, b)
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(af == 'register' and bf == 'register', "OUT only works with absolute registers")
+		assert(aa and ba, "OUT only works with absolute registers")
+		
+		return string.char(0x18, reg_encode(av, bv))
+	end;
 
 }
 

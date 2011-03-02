@@ -19,15 +19,33 @@ local MEGAHERTZ = 1000*KILOHERTZ
 local SIG_NONE                 = 0x00 -- Nothing doing.
 local SIG_DIV0                 = 0x01 -- Divide by zero
 local SIG_ILLEGAL_INSTRUCTION  = 0x02 -- Illegal Instruction (aka, unknown opcode)
+local SIG_DEVICE_NOT_READY     = 0x03 -- attempt to use a device or port that is not in a valid state.
 local SIG_DOUBLE_FAULT         = 0x0f -- Double-fault (eg, fault before clearing a fault)
 local SIG_TRIPLE_FAULT         = 0xff -- Triple (halting) fault.
 
-signals = {
-	[SIG_NONE]          = "Signal Normal";
-	[SIG_DIV0]          = "Divide by zero";
-	[SIG_DOUBLE_FAULT]  = "Double Fault";
-	[SIG_TRIPLE_FAULT]  = "Triple Fault (halting fault)";
+local signals = {
+	[SIG_NONE]                = "Signal Normal";
+	[SIG_DIV0]                = "Divide by zero";
+	[SIG_ILLEGAL_INSTRUCTION] = "Illegal Instruction";
+	[SIG_DEVICE_NOT_READY]    = "Device Not Ready";
+	[SIG_DOUBLE_FAULT]        = "Double Fault";
+	[SIG_TRIPLE_FAULT]        = "Triple Fault (halting fault)";
 	}
+
+local DEV_NONE      =0x00
+local DEV_TERMINAL  =0x01
+local DEV_STREAM    =0x02
+local DEV_STORE     =0x03
+local DEV_NETWORK   =0x04
+
+local devices = {
+	[DEV_NONE]     = "Null Device";
+	[DEV_TERMINAL] = "Terminal Device";
+	[DEV_STREAM]   = "Datastream Device";
+	[DEV_STORE]    = "Persistant Storage Device";
+	[DEV_NETWORK]  = "Networking Device";
+	}
+	
 
 -------------------------------------------------------------------------
 -- MISC
@@ -90,6 +108,9 @@ local function wait(n)
 	until dt >= n
 	return dt
 end
+
+-- does nothing.
+local function nop() end
 
 -------------------------------------------------------------------------
 -- Instruction set
@@ -256,14 +277,14 @@ _M.iset = {
 	--  free-register I/O port read
 	[0x17]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
-		--- what goes here?
+		self[b] = self:deviceRead(self[a])
 		return 2;
 	end;
 	-- OUT R1, R2
 	--  free-register I/O port write
 	[0x18]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
-		--- what goes here?
+		self:deviceWrite(self[a], self[b])
 		return 2;
 	end;
 	-- EQL .A:.B -> .RET 
@@ -337,8 +358,8 @@ end
 function _M:new(name)
 
 	_M.number = _M.number+1
-	
-	local m = {name=name or ("Machine_%02x"):format(_M.number), time = 0,speed=_M.speed, memory={};
+	name = name or ("Machine_%02x"):format(_M.number)
+	local m = {name=name, time = 0, speed=_M.speed, memory={}, devices={};
 		IP=0,			-- Instruction Pointer
 		SIG=0,		-- SIGnal register
 		SEG=0,		-- SEGment Pointer
@@ -372,6 +393,70 @@ function _M:load(start, data)
 		self.memory[i+start] = data[i+1]
 	end
 end
+
+-- creates a device and 'installs' it into the machine.
+-- should creation fail, it returns nil.
+--
+-- Returns: dev-id
+function _M:deviceCreate(devtype, ...)
+	local idx = #self.devices + 1
+	if devtype == DEV_TERMINAL or devtype == DEV_STREAM then
+		local dev =  {idx=idx, type=devtype, pout=nop, pin=nop}
+		dev.name = (devtype == DEV_TERMINAL and "Acme Accuterm") or "Perfetion port" -- deliberate typo
+		dev.stream = io.open(("%s--%d--%s.log"):format(self.name, idx, dev.name), "w")
+		
+		pout = function(self, val)
+			self.stream:write(string.char(val))
+			return 0
+		end
+		
+		pin = function(self)
+			return 0;
+		end
+
+		self.devices[idx] = dev
+		return idx
+	elseif devtype == DEV_NONE then
+		local dev =  {type=devtype, pout=nop, pin=nop}
+		dev.name = "Mu"
+
+		self.devices[idx] = dev
+		return idx
+	else
+		return nil
+	end
+end
+
+-- attempt to use port io to write val to device id
+-- 
+-- returns: status-code
+function _M:deviceWrite(id, val)
+	if not self.devices[id] then self:signal(SIG_DEVICE_NOT_READY) end
+	return self.device[id]:pout(val)
+end
+
+-- attempt to use port io to write val to device id
+-- 
+-- returns: status-code
+function _M:deviceRead(id, val)
+	if not self.devices[id] then self:signal(SIG_DEVICE_NOT_READY) end
+	return self.device[id]:pin()
+end
+
+-- Causes the field-circus to services the indicated device,
+--  rendering it inoperable
+-- 
+-- returns: (nothing)
+function _M:deviceBreak(id)
+	local dev = self.devices[id]
+	if not dev then return end
+	
+	if dev.type == DEV_TERMINAL or dev.type == DEV_STREAM then
+		dev.stream:close()
+		self.devices[id] = false
+	end
+end
+
 
 -----
 -- Executes the given number of cycles.
