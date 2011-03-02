@@ -47,11 +47,11 @@ local function parm(p)
 end
 
 local encoders = {
-	NOP = function(a, b)
+	NOP = function(a, b, c)
 		assert(not (a or b), "NOP has no parms")
 		return string.char(0x00)	
 	end;
-	MOV = function(a, b)
+	MOV = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		
@@ -78,7 +78,7 @@ local encoders = {
 			end
 		end
 	end;
-	ADD = function(a, b)
+	ADD = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
@@ -93,7 +93,7 @@ local encoders = {
 		end
 		error("unhandled ADD form!")
 	end;
-	SUB = function(a, b)
+	SUB = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
@@ -104,7 +104,7 @@ local encoders = {
 		 -- free-register form
 		return string.char(0x1a, reg_encode(av, bv))
 	end;
-	DIV = function(a, b)
+	DIV = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
@@ -124,7 +124,7 @@ local encoders = {
 		
 		return string.char(0x19, reg_encode(av, bv))
 	end;
-	SHW = function(a, b)
+	SHW = function(a, b, c)
 		local af, aa, av = parm(a)
 		assert(af=='register' and aa, "SHW only presently works for absolute registers")
 		
@@ -139,7 +139,7 @@ local encoders = {
 		assert(not (a or b or c), "HLT takes no parms")
 		return string.char(0xff)
 	end;
-	SWP = function(a, b)
+	SWP = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "SWP only works with registers")
@@ -152,7 +152,7 @@ local encoders = {
 		end
 		error("unhandled SWP form!")
 	end;
-	LES = function(a, b)
+	LES = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
@@ -167,7 +167,7 @@ local encoders = {
 		end
 		error("unhandled LES form!")
 	end;
-	GTR = function(a, b)
+	GTR = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "GTR only works with absolute registers")
@@ -181,7 +181,7 @@ local encoders = {
 			error("GTR is only currently defined in the form GTR .A,.B")
 		end
 	end;
-	EQL = function(a, b)
+	EQL = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "EQL only works with registers")
@@ -195,7 +195,7 @@ local encoders = {
 		end
 		error("unhandled LES form!")
 	end;
-	GTE = function(a, b)
+	GTE = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "GTE only works with registers")
@@ -208,7 +208,7 @@ local encoders = {
 		end
 		error("unhandled GRT form!")
 	end;
-	LTE = function(a, b)
+	LTE = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "LTE only works with registers")
@@ -221,14 +221,14 @@ local encoders = {
 		end
 		error("unhandled LRT form!")
 	end;
-	LBL = function(a, b)
+	LBL = function(a, b, c)
 		assert((a or b), "LBL requires parms")
 		
 		if a then symbols[a] = len%256 end
 		if b then symbols[b] = math.floor(len/256) end
 		return ""
 	end;
-	JNZ = function(a, b)
+	JNZ = function(a, b, c)
 		assert(a or b, "JNZ requires parms.")
 		assert(not b, "JNZ only accepts one parm.")
 		local af, aa, av = parm(a)
@@ -242,7 +242,7 @@ local encoders = {
 		end		
 		error("unhandled JNZ form!")
 	end;
-	JMP = function(a, b)
+	JMP = function(a, b, c)
 		assert(a or b, "JMP requires parms.")
 		assert(not b, "JMP only accepts one parm.")
 		local af, aa, av = parm(a)
@@ -256,7 +256,7 @@ local encoders = {
 		end		
 		error("unhandled JNZ form!")
 	end;
-	LET = function(a, b)
+	LET = function(a, b, c)
 		assert((a or b), "LBL requires parms")
 		
 		symbols[a] = tonumber(b) or 0
@@ -290,7 +290,7 @@ local encoders = {
 		error("unhandled MNZ form!")
 	end;
 	
-	NOT = function(a, b)
+	NOT = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
@@ -298,7 +298,7 @@ local encoders = {
 		
 		return string.char(0x10, reg_encode(av, bv))
 	end;
-	AND = function(a, b)
+	AND = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
@@ -306,7 +306,7 @@ local encoders = {
 		
 		return string.char(0x11, reg_encode(av, bv))
 	end;
-	OR = function(a, b)
+	OR = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
@@ -314,7 +314,7 @@ local encoders = {
 		
 		return string.char(0x12, reg_encode(av, bv))
 	end;
-	XOR = function(a, b)
+	XOR = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
@@ -322,7 +322,7 @@ local encoders = {
 		
 		return string.char(0x13, reg_encode(av, bv))
 	end;
-	SHL = function(a, b)
+	SHL = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "SHL only works with absolute registers")
@@ -330,7 +330,7 @@ local encoders = {
 		
 		return string.char(0x14, reg_encode(av, bv))
 	end;
-	SHR = function(a, b)
+	SHR = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "SHR only works with absolute registers")
@@ -338,7 +338,7 @@ local encoders = {
 		
 		return string.char(0x15, reg_encode(av, bv))
 	end;
-	SRE = function(a, b)
+	SRE = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "SRE only works with absolute registers")
@@ -346,7 +346,7 @@ local encoders = {
 		
 		return string.char(0x16, reg_encode(av, bv))
 	end;
-	IN = function(a, b)
+	IN = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "IN only works with absolute registers")
@@ -354,7 +354,7 @@ local encoders = {
 		
 		return string.char(0x17, reg_encode(av, bv))
 	end;
-	OUT = function(a, b)
+	OUT = function(a, b, c)
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(af == 'register' and bf == 'register', "OUT only works with absolute registers")
