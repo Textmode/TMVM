@@ -104,7 +104,7 @@ local function wait(n)
 	local t, nt, dt = os.time(), nil, 0
 	repeat
 		nt = os.time()
-		dt = os.difftime(t, nt)
+		dt = os.difftime(nt, t)
 	until dt >= n
 	return dt
 end
