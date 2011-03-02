@@ -37,6 +37,7 @@ local function parm(p)
 			else
 				--assert(value, string.format("Okay, I give up. whats '%s'?", tostring(p)))
 				form = 'symbol'
+				value = p
 			end
 				
 			
