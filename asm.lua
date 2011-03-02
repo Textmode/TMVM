@@ -19,8 +19,8 @@ end
 local function parm(p)
 	assert(p, "Can't check nil parms!")
 	p = string.match(p, "%S+")
-	local form, abs, value = 'unk', not (p:sub(1, 1) == '&'), p
-	p = p:match("&?(.*)")
+	local form, abs, value = 'unk', not (p:sub(1, 1) == '&'), p:match("\&?(.*)")
+	p = value
 	
 	for i=1,#regs do
 		form = regs[i] == p and 'register' or form
@@ -275,7 +275,7 @@ local encoders = {
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		assert(aa and av=='RET', "JNZ may only test RET at this time.")
-		assert(bf=='literal' or af == 'symbol', "Only constant jump targets supported at this time.")
+		assert(bf=='literal' or bf == 'symbol', "Only constant jump targets supported at this time.")
 		assert(ba, "JNZ only supports absolute (inline) jump targets at this time.")
 		
 		if bf == 'literal' then 
