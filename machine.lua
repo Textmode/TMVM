@@ -307,7 +307,7 @@ _M.iset = {
 	--  fixed-register AB ADDition, results in ACC
 	[0x1a]=function(self) 
 		self.ACC = (self.A - self.B) % 256
-		return 1;
+		return 2;
 	end;	
 	-- EQL .A:.B -> .RET 
 	--  fixed-register AB equals, results in RET
