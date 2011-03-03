@@ -16,6 +16,24 @@ local function reg_encode(a, b)
 	return (regnum[a]*16) + regnum[b]
 end
 
+-- trys to figure out the base of a number, and process it accordingly.
+local function parsenum(n)
+	if type(n) == 'number' then return n end -- our work here is done!
+	assert(type(n) == 'string', "Cannot parse non-text")
+
+	if n:sub(1,1) == "$" then  -- hexadecimal
+		return tonumber(n:sub(2), 16)
+	elseif n:sub(-1,-1) == 'h' then -- hexadecimal again
+		return tonumber(n:sub(1, -2), 16)
+	elseif n:sub(1,1) == "%" then -- binary
+		return tonumber(n:sub(2), 2)
+	elseif n:sub(1,1) == "O" then  -- Octal
+		return tonumber(n:sub(2), 8)
+	else  -- doesn't seem to be anything special, decimal?
+		return tonumber(n) 
+	end
+end
+
 local function parm(p)
 	assert(p, "Can't check nil parms!")
 	p = string.match(p, "%S+")
@@ -29,7 +47,7 @@ local function parm(p)
 	end
 	
 	if form ~= 'register' then 
-		value = tonumber(p)
+		value = parsenum(p)
 		form = 'literal'
 		
 		if value == nil then
@@ -504,15 +522,22 @@ function _M.parse(t, verbose)
 	symbols = {}
 	
 	--  parse statements into operands and parms
-	local op, a, b
+	local op, a, b, c, d
+	local match = "([&%[]?[%%$]?[%w_]*%]?)[,%s]*(.*)"
 	for i=1,#t do
-		op, a = string.match(t[i], "(%u*) *(.*)")
-		a, b, c = string.match(a, "(&?[^%p%s]*)[,%s]?[,%s]?(&?[^%p%s]*)[,%s]?[,%s]?(&?[^%p%s]*)")
+		op, a = string.match(t[i], match)
+		if a then
+			a, b  = string.match(a, match) end
+		if b then
+			b, c  = string.match(b, match) end
+		if c then
+			c, d  = string.match(c, match) end
 
 		if op == "" then op = nil end
 		if a  == "" then a  = nil end
 		if b  == "" then b  = nil end
 		if c  == "" then c  = nil end
+		if d  == "" then d  = nil end
 		chk[i]={op=op, a=a, b=b, c=c}
 	end
 	
