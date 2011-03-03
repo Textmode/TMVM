@@ -122,6 +122,7 @@ _M.iset = {
 	[0x00]=function(self) 
 		return 1;
 	end;
+	[0x01=nil;
 	-- MOV &R:&R 
 	--  indirect free-register move
 	[0x02]=function(self) 
@@ -163,7 +164,9 @@ _M.iset = {
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self[a], self[b] = self[b], self[a]
 		return 2;
-	end;	
+	end;
+	
+	
 	-- SWP .A:.B (or SWP .B:.A ...)
 	--  fixed register AB swap
 	[0x08]=function(self) 
@@ -224,6 +227,8 @@ _M.iset = {
 		self[b] = self[a]
 		return 2;
 	end;
+	
+	
 	-- NOT R -> R
 	--  free-register Bitwise NOT in:out
 	[0x10]=function(self) 
@@ -280,6 +285,8 @@ _M.iset = {
 		self[b] = self:deviceRead(self[a])
 		return 2;
 	end;
+	
+	
 	-- OUT R1, R2
 	--  free-register I/O port write
 	[0x18]=function(self) 
@@ -309,6 +316,32 @@ _M.iset = {
 		self.RET = round((self[a] % self[b]) % 256)
 		return 2;
 	end;
+	-- MOD R, R -> ACC
+	--  Free-register Multiply
+	[0x1c]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.ACC = round((self[a] % self[b]) % 256)
+		return 2;
+	end;
+	-- DIV R, R -> ACC
+	--  Free-register divide
+	[0x1e]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		if self.b == 0 then self:signal(SIG_DIV0) end
+		self.ACC = round((self[a] / self[b]) % 256)
+		return 2;
+	end;
+	-- MUL R, R -> ACC
+	--  Free-register Multiply
+	[0x1f]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		if a == 'PRM' or b == 'PRM' then
+			self:signal(SIG_ILLEGAL_INSTRUCTION) end
+		self.ACC = round((self[a] * self[b]) % 256)
+		return 2;
+	end;
+	
+	
 	-- EQL .A:.B -> .RET 
 	--  fixed-register AB equals, results in RET
 	[0xa0]=function(self) 
@@ -322,7 +355,7 @@ _M.iset = {
 		print(a..": "..self[a])
 		return 2;
 	end;
-	-- DIV R, R 
+	-- DIV R, R -> RET
 	--  Free-register divide
 	[0xa2]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
@@ -336,6 +369,8 @@ _M.iset = {
 		self.RET = ({[true]=1,[false]=0})[self.A > self.B]
 		return 1;
 	end;
+	
+	
 	-- HLT 
 	--  halts the machine
 	[0xff]=function(self) 

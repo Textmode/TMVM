@@ -151,9 +151,13 @@ local encoders = {
 		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "DIV only works with registers")
 		assert(aa and ba,  "DIV only works with absolute parms")
-		assert(cf == 'register' and ca and cv=='RET', "DIV only supports absolute RET as a destination")
+		assert(cf == 'register' and ca and (cv=='RET' or cv=='ACC'), "DIV only supports absolute RET or ACC as a destination")
 		
-		return string.char(0xa1, reg_encode(av, bv))
+		if cv == 'RET' then
+			return string.char(0xa1, reg_encode(av, bv))
+		else -- cv == ACC
+			return string.char(0x1d, reg_encode(av, bv))
+		end
 	end;
 	MUL = function(a, b, c)
 		assert(a and b and c, "MUL must be properly qualified: 'MUL R1,R2,RET'")
@@ -162,9 +166,13 @@ local encoders = {
 		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "MUL only works with registers")
 		assert(aa and ba,  "MUL only works with absolute parms")
-		assert(cf == 'register' and ca and cv=='RET', "MUL only supports absolute RET as a destination")
+		assert(cf == 'register' and ca and (cv=='RET' or cv=='ACC'), "MUL only supports absolute RET or ACC as a destination.")
 		
-		return string.char(0x19, reg_encode(av, bv))
+		if cv == 'RET' then
+			return string.char(0x19, reg_encode(av, bv))
+		else -- cv == ACC
+			return string.char(0x1e, reg_encode(av, bv))
+		end
 	end;
 	MOD = function(a, b, c)
 		assert(a and b and c, "MOD must be properly qualified: 'MOD R1,R2,RET'")
@@ -173,9 +181,13 @@ local encoders = {
 		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "MOD only works with registers")
 		assert(aa and ba,  "MOD only works with absolute parms")
-		assert(cf == 'register' and ca and cv=='RET', "MOD only supports absolute RET as a destination")
+		assert(cf == 'register' and ca and (cv=='RET' or cv=='ACC'), "MOD only supports absolute RET or ACC as a destination")
 		
-		return string.char(0x1b, reg_encode(av, bv))
+		if cv == 'RET' then
+			return string.char(0x1b, reg_encode(av, bv))
+		else -- cv == ACC
+			return string.char(0x1c, reg_encode(av, bv))
+		end
 	end;
 	SHW = function(a, b, c)
 		assert(a and not (b or c), "SHW must be properly qualified: 'SHW R'")
