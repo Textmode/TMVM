@@ -154,7 +154,7 @@ local encoders = {
 		assert(aa and ba,  "MOD only works with absolute parms")
 		assert(cf == 'register' and ca and cv=='RET', "MOD only supports absolute RET as a destination")
 		
-		return string.char(0x1a, reg_encode(av, bv))
+		return string.char(0x1b, reg_encode(av, bv))
 	end;
 	SHW = function(a, b, c)
 		assert(a and not (b or c), "SHW must be properly qualified: 'SHW R'")
