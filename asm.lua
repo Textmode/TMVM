@@ -544,15 +544,29 @@ function _M.parse(t, verbose)
 	
 	-- encode into binary representations
 	local bin = {}
-	local op, a, b, r
+	local op, a, b, c, d, suc, r
 	len = 0
 	for i=1,#chk do
-		op, a, b, c = chk[i].op,chk[i].a,chk[i].b,chk[i].c
+		op, a, b, c, d = chk[i].op,chk[i].a,chk[i].b,chk[i].c, chk[i].d
 		if op then
-			assert(encoders[op], ("[line %d: %s %s,%s # Unknown instruction.]"):format(i, op, tos(a), tos(b)))
+			local lne = string.format("line %d: %s %s,%s,%s", i, tos(op), tos(a), tos(b), tos(c), tos(d))
+			if not encoders[op] then
+				local msg = ("[%s # Unknown instruction.]"):format(lne)
+				if verbose then print(msg) end
+				return false, msg
+			end
+
 			if verbose then print(string.format("%s %s, %s, %s", tos(op), tos(a), tos(b), tos(c))) end
-			r, patch = encoders[op](a, b, c)
-			assert(r, ("[line %d: %s %s,%s,%s # No valid reduction.]"):format(i, op, tos(a), tos(b), tos(c)))
+			suc, r, patch = pcall(encoders[op], a, b, c, d)
+			if suc then
+				assert(r, ("[line %d: %s %s,%s,%s # No valid reduction.]"):
+					format(i, op, tos(a), tos(b), tos(c), tos(d)))
+			else
+				local lne = string.format("line %d: %s %s,%s,%s", i, tos(op), tos(a), tos(b), tos(c), tos(d))
+				local msg = ("[%s # %s.]"):format(lne, tostring(r))
+				if verbose then print(msg) end
+				return false, msg
+			end
 
 			bin[i] = r or ""
 			len = len + #r
@@ -594,7 +608,7 @@ if arg and arg[0] and (arg[0]=='asm.lua' or arg[0]=='asm') then
 	local inf, outf, err = arg[1], arg[2], ""
 	assert(inf, "must specify a file to load")
 	print(string.format("Loading '%s'", inf))
-	local chk = _M.load(inf)
+	local chk, err = _M.load(inf)
 
 	if not outf then outf = (string.match(inf, "[^%.]*") or tmpnam())..".crap" end
 
@@ -602,13 +616,20 @@ if arg and arg[0] and (arg[0]=='asm.lua' or arg[0]=='asm') then
 	
 	outf, err = io.open(outf, "w")
 	assert(outf, err)
-	chk = _M.parse(chk, true)
-	outf:write(chk)
+	chk, err = _M.parse(chk, true)
+	
+	if chk then
+		outf:write(chk)
+	else
+		print("Failed.")
+		return 1
+	end
 	outf:close()
 	
 	io.write('{')
 	for i=1,#chk do io.write(string.format("0x%02x;", chk:byte(i))) end
 	print('}')
+	return 0
 end
 	
 
