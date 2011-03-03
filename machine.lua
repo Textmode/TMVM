@@ -127,7 +127,7 @@ _M.iset = {
 	[0x01]=function(self)
 		self.ACC = (self.ACC+1) % 256
 		return 1
-	end
+	end;
 	-- MOV &R:&R 
 	--  indirect free-register move
 	[0x02]=function(self) 
@@ -350,7 +350,7 @@ _M.iset = {
 	[0x1f]=function(self)
 		self.ACC = (self.ACC-1) % 256
 		return 1
-	end
+	end;
 	
 	
 	-- EQL .A:.B -> .RET 
