@@ -287,11 +287,18 @@ _M.iset = {
 		self:deviceWrite(self[a], self[b])
 		return 2;
 	end;
-	-- MUL R, R 
+	-- MUL R, R -> RET
 	--  Free-register Multiply
 	[0x19]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = round((self[a] * self[b]) % 256)
+		return 2;
+	end;
+	-- MOD R, R -> RET
+	--  Free-register Multiply
+	[0x1a]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.RET = round((self[a] % self[b]) % 256)
 		return 2;
 	end;
 	-- SUB .A:.B -> .ACC

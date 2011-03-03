@@ -6,7 +6,7 @@ local symbols, len -- needed for parsing
 
 local regnum = {PRM=0x0, A  =0x1, B  =0x2, ACC=0x3, RET=0x4,
                 SIG=0xd, SEG=0xe, IP =0xf}
-local regs = {'A', 'B', 'ACC', 'RET', 'SEG', 'IP'} 
+local regs = {'A', 'B', 'ACC', 'RET', 'SIG', 'SEG', 'IP'} 
 
 local function reg_encode(a, b)
 	a = a or 'PRM'
@@ -144,6 +144,17 @@ local encoders = {
 		assert(cf == 'register' and ca and cv=='RET', "MUL only supports absolute RET as a destination")
 		
 		return string.char(0x19, reg_encode(av, bv))
+	end;
+	MOD = function(a, b, c)
+		assert(a and b and c, "MOD must be properly qualified: 'MOD R1,R2,RET'")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
+		assert(af == 'register' and bf == 'register', "MOD only works with registers")
+		assert(aa and ba,  "MOD only works with absolute parms")
+		assert(cf == 'register' and ca and cv=='RET', "MOD only supports absolute RET as a destination")
+		
+		return string.char(0x1a, reg_encode(av, bv))
 	end;
 	SHW = function(a, b, c)
 		assert(a and not (b or c), "SHW must be properly qualified: 'SHW R'")
