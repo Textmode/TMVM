@@ -116,6 +116,20 @@ local encoders = {
 			end
 		end
 	end;
+	INC = function(a, b, c)
+		assert(a and not (b or c), "INC must be properly qualified: 'INC ACC'")
+		local af, aa, av = parm(a)
+		assert(af == 'register' and aa and av=='ACC', "INC only supports absolute ACC as a destination")
+		
+		return string.char(0x01)
+	end;
+	DEC = function(a, b, c)
+		assert(a and not (b or c), "DEC must be properly qualified: 'DEC ACC'")
+		local af, aa, av = parm(a)
+		assert(af == 'register' and aa and av=='ACC', "DEC only supports absolute ACC as a destination")
+		
+		return string.char(0x1f)
+	end;
 	ADD = function(a, b, c)
 		assert(a and b and c, "ADD must be properly qualified: 'ADD R1,R2,ACC'")
 		local af, aa, av = parm(a)

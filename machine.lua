@@ -122,7 +122,12 @@ _M.iset = {
 	[0x00]=function(self) 
 		return 1;
 	end;
-	[0x01]=nil;
+	-- INC ACC
+	--  Fixed register Increment
+	[0x01]=function(self)
+		self.ACC = (self.ACC+1) % 256
+		return 1
+	end
 	-- MOV &R:&R 
 	--  indirect free-register move
 	[0x02]=function(self) 
@@ -340,6 +345,12 @@ _M.iset = {
 		self.ACC = round((self[a] * self[b]) % 256)
 		return 2;
 	end;
+	-- DEC ACC
+	--  Fixed register Decrement
+	[0x1f]=function(self)
+		self.ACC = (self.ACC-1) % 256
+		return 1
+	end
 	
 	
 	-- EQL .A:.B -> .RET 
