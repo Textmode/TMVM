@@ -90,6 +90,7 @@ local encoders = {
 				assert(bv=="A", "MOV litteral to (not A) not implemented")
 				return string.char(0x05, tonumber(av))
 			elseif aa == false and ba == true then -- mixed get form
+				assert(bv=="A", "MOV litteral to (not A) not implemented")
 				return string.char(0x04, tonumber(av))
 			end
 		end
