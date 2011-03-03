@@ -122,7 +122,7 @@ _M.iset = {
 	[0x00]=function(self) 
 		return 1;
 	end;
-	[0x01=nil;
+	[0x01]=nil;
 	-- MOV &R:&R 
 	--  indirect free-register move
 	[0x02]=function(self) 
