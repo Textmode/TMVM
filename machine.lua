@@ -325,7 +325,7 @@ _M.iset = {
 	end;
 	-- DIV R, R -> ACC
 	--  Free-register divide
-	[0x1e]=function(self) 
+	[0x1d]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		if self.b == 0 then self:signal(SIG_DIV0) end
 		self.ACC = round((self[a] / self[b]) % 256)
@@ -333,7 +333,7 @@ _M.iset = {
 	end;
 	-- MUL R, R -> ACC
 	--  Free-register Multiply
-	[0x1f]=function(self) 
+	[0x1e]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		if a == 'PRM' or b == 'PRM' then
 			self:signal(SIG_ILLEGAL_INSTRUCTION) end
