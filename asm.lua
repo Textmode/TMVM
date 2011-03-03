@@ -22,6 +22,8 @@ local function parm(p)
 	local form, abs, value = 'unk', not (p:sub(1, 1) == '&'), p:match("\&?(.*)")
 	p = value
 	
+	if p == 'null' then return 'symbol', abs, 'null' end -- null is always availible, and never set
+	
 	for i=1,#regs do
 		form = regs[i] == p and 'register' or form
 	end
