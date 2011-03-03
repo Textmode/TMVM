@@ -85,8 +85,8 @@ end
 
 -- a probably flawed rounding function.
 local function round(n)
-	if x > 0 then return math.floor(n)
-	else return math.ciel(n) end
+	if n > 0 then return math.floor(n)
+	else return math.ceil(n) end
 end
 
 -- converts a string of bytes into the standard bytetables used elsewhere
@@ -291,6 +291,8 @@ _M.iset = {
 	--  Free-register Multiply
 	[0x19]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
+		if a == 'PRM' or b == 'PRM' then
+			self:signal(SIG_ILLEGAL_INSTRUCTION) end
 		self.RET = round((self[a] * self[b]) % 256)
 		return 2;
 	end;
@@ -358,7 +360,12 @@ function _M:signal(sig)
 	
 	if sig == SIG_NONE then
 		self.SIG = SIG_NONE
-	elseif self.SIG == SIG_DOUBLE then
+		return self.SIG
+	elseif self.SIG == SIG_TRIPLE_FAULT then
+		return self.SIG
+	end
+	
+	if self.SIG == SIG_DOUBLE then
 		self.SIG = SIG_TRIPLE_FAULT
 		self.state = 'halt'
 	elseif self.SIG ~= SIG_NONE then
@@ -489,12 +496,12 @@ function _M:cycle(n)
 		ins = self.memory[self.IP]
 		if not self.iset[ins] then
 			alert(false, ("Invalid instruction at address 0x%02x : %02x"):format(self.IP, ins))
-			self:signal(SIG_INVALID_INSTRUCTION)
+			self:signal(SIG_ILLEGAL_INSTRUCTION)
+		else
+			self.IP = self.iset[ins](self) + self.IP -- order is important here.
+			self.IP = self.IP % 256
+			self.time = self.time+1
 		end
-
-		self.IP = self.iset[ins](self) + self.IP -- order is important here.
-		self.IP = self.IP % 256
-		self.time = self.time+1	
 		
 		if self.state == 'halt' then return 'halt' end
 	end
