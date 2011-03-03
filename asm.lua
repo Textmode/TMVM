@@ -270,17 +270,6 @@ local encoders = {
 		end
 		error("unhandled LRT form!")
 	end;
-	LBL = function(a, b, c)
-		assert(a and b, "LBL must be properly qualified: 'LBL adrsym,optsegsym")
-		local af, aa, av = parm(a)
-		local bf, ba, bv = parm(b)
-		assert(aa and ba, "Values may only be stored in build-time symbols")
-		assert(af=='symbol' and bf=='symbol', "Values may only be stored in valid, unused, symbols")
-		
-		if av then symbols[av] = len%256 end
-		if bv then symbols[bv] = math.floor(len/256) end
-		return ""
-	end;
 	JNZ = function(a, b, c)
 		assert(a and b and (not c), "JNZ must be properly qualified: 'JNZ RET,nn'")
 		local af, aa, av = parm(a)
@@ -319,6 +308,37 @@ local encoders = {
 
 		symbols[a] = tonumber(b) or 0
 		return ""
+	end;
+	LBL = function(a, b, c)
+		assert(a and b, "LBL must be properly qualified: 'LBL adrsym,optsegsym")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(aa and ba, "Values may only be stored in build-time symbols")
+		assert(af=='symbol' and bf=='symbol', "Values may only be stored in valid, unused, symbols")
+		
+		if av then symbols[av] = len%256 end
+		if bv then symbols[bv] = math.floor(len/256) end
+		return ""
+	end;
+	-- this mess won't work properly when patching values...
+	BYTE = function(a, b, c)
+		assert(a and b and c, "BYTE must be properly qualified: 'BYTE symbol,symbolseg,initialiser")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
+		assert(aa and ba, "Values may only be stored in build-time symbols")
+		assert(af=='symbol' and bf=='symbol', "Values may only be stored in valid, unused, symbols")
+		assert(cf =='literal' or cf == 'symbol', "Only build-time values may be used as an initialiser")
+
+		if av and bv then
+			symbols[av] = len%256
+			symbols[bv] = math.floor(len/256)
+		end
+		if cf=='literal' then
+			return string.char(cv%256)
+		else
+			return string.char(00), true
+		end
 	end;
 	MNZ = function(a, b, c)
 		assert(a and b and c, "MNZ must be properly qualified: 'MNZ R1,R2,nn'")
