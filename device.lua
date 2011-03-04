@@ -62,7 +62,6 @@ namer = namedevice
 -- returns: device
 function _M:new(t)
 	assert(t.type, "Cannot create devices with no type!")
-	print("devtype", t.type)
 	local d = {type=t.type,_TYPE='device',  name=t.name or _M:generatename(t.type);
 		portmaps = t.portmaps, portmap={}}
 	setmetatable(d, _MT)
@@ -73,7 +72,6 @@ function _M:new(t)
 		
 		self.receive = function(self, pin, val)
 			assert(self.started, "Not Started!")
-			print("YEHAW! A")
 			self.stream:write(string.char(val))
 			return 0
 		end
@@ -110,8 +108,6 @@ end
 
 local function testmap(sysmap, testmap)
 	local _, p
-	for _, p in pairs(testmap) do print('testmap', _, p) end
-	for _, p in pairs(sysmap) do print('sysmap', _, p) end
 	for _, p in pairs(testmap) do
 		if sysmap[p] then return false end
 	end
@@ -153,12 +149,10 @@ function _M:start(host, idx)
 		self.stream = io.open(fname, "w")
 		assert(self.stream, "Could not open stream")
 		
-		print(self.name.. " : started as term/stream")
 		self.started = true
 		return _M.DEV_STATUS_READY;
 	elseif self.type == _M.DEV_TYPE_NONE then
 
-		print(self.name.. " : started as null port")
 		self.started = true
 		return _M.DEV_STATUS_READY;
 	else
@@ -169,17 +163,11 @@ function _M:start(host, idx)
 end
 
 function _M:registerport(adr, port)
-	print('register: ', port, adr)
 	self.portmap[adr]=port
 	return self
 end
 
 function _M:writeport(adr, data)
-	print('writeport:', adr, data)
-	print(self.name..'...')
-	for k, v in pairs(self.portmap) do print('mapping', k, v) end
-	print("...end")
-	
 	assert(self.portmap[adr], "Data written to unknown port!")
 	if self.receive then
 		return self:receive(self.portmap[adr], data)
