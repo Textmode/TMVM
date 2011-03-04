@@ -447,8 +447,14 @@ function _M:new(name)
 		m.memory[i] = 0--math.random(256)-1
 	end
 	
-	m:deviceInstall(device:new{type=device.DEV_TYPE_NONE})
-	m:deviceInstall(device:new{type=device.DEV_TYPE_TERMINAL})
+	local t, err, d
+	d = device:new{type=device.DEV_TYPE_NONE}
+	t, err = m:deviceInstall(d)
+	assert(t, err)
+
+	d = device:new{type=device.DEV_TYPE_TERMINAL}
+	t, err = m:deviceInstall(d)
+	assert(t, err)
 	
 	return m
 end
@@ -481,7 +487,7 @@ function _M:deviceInstall(dev)
 	
 	if p_map then
 		for i, p in pairs(p_map) do
-			if not self.portmap[p] then
+			if self.portmap[p] then
 				return false, "port conflict" end
 			self.portmap[p]=dev:registerport(p, i)
 		end
@@ -489,32 +495,40 @@ function _M:deviceInstall(dev)
 		return false, err
 	end
 	
-	local t, err = device:start(self, idx)
+	local t, err = dev:start(self, idx)
 	if t then
-		self.devices[idx] = device
+		self.devices[idx] = dev
 	else
 		return false, "start error: "..tostring(err)
 	end
+	
+	return dev
 end
 
 -- attempt to use port io to write val to device id
 -- 
 -- returns: status-code
 function _M:deviceWrite(adr, val)
+	print("devwrite: ", adr, val)
 	if not self.portmap[adr] then
 		return false, device.DEV_STATUS_FAULTED end
 
-	return self.device[id]:writeport(adr, val)
+	print("devwritting: ", adr, val)
+
+	return self.portmap[adr]:writeport(adr, val)
 end
 
 -- attempt to use port io to write val to device id
 -- 
 -- returns: status-code
 function _M:deviceRead(adr)
+	print("devread: ", adr)
 	if not self.portmap[adr] then 
 		return false, device.DEV_STATUS_FAULTED end
 
-	return self.device[id]:readport(adr)
+	print("devreading: ", adr)
+
+	return self.portmap[adr]:readport(adr)
 end
 
 -- Causes the field-circus to services the indicated device,

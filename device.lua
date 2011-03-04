@@ -1,17 +1,18 @@
 local bitfield = require "bitfield"
 
-local _M = {_NAME="device"}
+local _M = {_NAME="device", _TYPE="module"}
 
 local _MT = {__index=_M}
 
 -------------------------------------------------------------------------
 -- Key values
 
-_M.DEV_TYPE_NONE      = 0x00
-_M.DEV_TYPE_TERMINAL  = 0x01
-_M.DEV_TYPE_STREAM    = 0x02
-_M.DEV_TYPE_STORE     = 0x03
-_M.DEV_TYPE_NETWORK   = 0x04
+_M.DEV_TYPE_INVALID   = 0x00
+_M.DEV_TYPE_NONE      = 0x01
+_M.DEV_TYPE_TERMINAL  = 0x02
+_M.DEV_TYPE_STREAM    = 0x03
+_M.DEV_TYPE_STORE     = 0x04
+_M.DEV_TYPE_NETWORK   = 0x05
 _M.DEV_TYPE_MACHINE   = 0xff
 
 _M.DEV_STATUS_READY    = 0x00  -- Device is ready
@@ -61,36 +62,61 @@ namer = namedevice
 -- returns: device
 function _M:new(t)
 	assert(t.type, "Cannot create devices with no type!")
-	local d = {type=t.type, name=t.name or _M:generatename(t.type), portmaps = t.portmaps}
+	print("devtype", t.type)
+	local d = {type=t.type,_TYPE='device',  name=t.name or _M:generatename(t.type);
+		portmaps = t.portmaps, portmap={}}
 	setmetatable(d, _MT)
 	
-	if d.type == DEV_TERMINAL or devtype == DEV_STREAM then
+	if d.type == _M.DEV_TYPE_TERMINAL or d.type == _M.DEV_TYPE_STREAM then
 		local dev =  {idx=idx, type=devtype}
+		self.stream = {}
 		
 		self.receive = function(self, pin, val)
+			assert(self.started, "Not Started!")
+			print("YEHAW! A")
 			self.stream:write(string.char(val))
 			return 0
 		end
 		
 		self.send = function(self, pin)
+			assert(self.started, "Not Started!")
 			return 0;
 		end
-		d.portmaps = {{1}}
+		if d.type == _M.DEV_TYPE_TERMINAL then
+			d.portmaps = {{1}}
+		else
+			d.portmaps = {{10}, {20}, {30}, {40}}
+		end
 		
-	elseif devtype == DEV_NONE then
+	elseif d.type == _M.DEV_TYPE_NONE then
 		self.receive = function(self, pin, val)
+			assert(self.started, "Not Started!")
 			return 0
 		end
 		
 		self.send = function(self, pin)
+			assert(self.started, "Not Started!")
 			return 0
 		end
 
 		d.portmaps = {{0}}
 
+	else
+		error("Unknown device type: "..tostring(d.type), 2)
+	end
+
+	return d
+end
+
+local function testmap(sysmap, testmap)
+	local _, p
+	for _, p in pairs(testmap) do print('testmap', _, p) end
+	for _, p in pairs(sysmap) do print('sysmap', _, p) end
+	for _, p in pairs(testmap) do
+		if sysmap[p] then return false end
 	end
 	
-	return d
+	return true
 end
 
 -- examines the given portmap and returns a non-conflicting portmap
@@ -99,28 +125,17 @@ end
 --   or
 -- returns: false, errmsg
 function _M.findports(dev, portmap)
-	
-	local p_map, port
-	for i=1,#dev.portmaps do
-		
-		p_map = dev.portmaps[i]
-		for j=1, #p_map do
-			port = p_map[j]
-			if portmap[port] then
-				p_map = nil
-				break
-			end
-		end
-		if p_map then break end; -- we found one, hurrah!
-	end
+	assert(not dev.started, "Can't remap started devices")
+	assert(dev and dev.portmaps and portmap, "Findports requires valid parms")
 
-	if not p_map then
-		return false, "Could not find valid portmapping"
-	else	
-		return p_map
+	local _, pm
+	for _, pm in pairs(dev.portmaps) do
+		if testmap(portmap, pm) then
+			return pm
+		end
 	end
 	
-	return false, "Unknown error"
+	return false, "Could not find valid portmapping"
 end
 
 -- Starts the device, and readies it for use
@@ -130,38 +145,58 @@ end
 -- returns false, errmsg
 function _M:start(host, idx)
 	self.host = host
+	self.idx = idx
+	self.portmaps = nil --note plural
 
-	if self.type == DEV_TYPE_TERMINAL or self.type == DEV_TYPE_STREAM then
+	if self.type == _M.DEV_TYPE_TERMINAL or self.type == _M.DEV_TYPE_STREAM then
 		local fname = string.format("%s--%d--%s.log", self.host.name, self.idx, self.name)
 		self.stream = io.open(fname, "w")
+		assert(self.stream, "Could not open stream")
 		
+		print(self.name.. " : started as term/stream")
+		self.started = true
 		return _M.DEV_STATUS_READY;
-	elseif devtype == DEV_NONE then
+	elseif self.type == _M.DEV_TYPE_NONE then
 
+		print(self.name.. " : started as null port")
+		self.started = true
 		return _M.DEV_STATUS_READY;
+	else
+		return false, "Unknown device type: "..tostring(self.type)
 	end
 	
-	return false, "Unknown error"
+	return false, "Unknown start error"
 end
 
-function _M:registerport(port, address)
-	self.portmap[address]=port
+function _M:registerport(adr, port)
+	print('register: ', port, adr)
+	self.portmap[adr]=port
 	return self
 end
 
 function _M:writeport(adr, data)
+	print('writeport:', adr, data)
+	print(self.name..'...')
+	for k, v in pairs(self.portmap) do print('mapping', k, v) end
+	print("...end")
+	
 	assert(self.portmap[adr], "Data written to unknown port!")
 	if self.receive then
 		return self:receive(self.portmap[adr], data)
 	end
 	return false, _M.DEV_STATUS_BLOCKED
 end
+
 function _M:readport(adr, data)
 	assert(self.portmap[adr], "Data read from unknown port!")
 	if self.send then
 		return self:send(self.portmap[adr])
 	end
 	return false, _M.DEV_STATUS_BLOCKED
+end
+
+function _MT.__tostring(self)
+	return string.format('%s, "%s"', dev_type_names[self.type], self.name)
 end
 
 -- MODULE TAIL
