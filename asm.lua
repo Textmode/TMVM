@@ -29,6 +29,8 @@ local function parsenum(n)
 		return tonumber(n:sub(2), 2)
 	elseif n:sub(1,1) == "O" then  -- Octal
 		return tonumber(n:sub(2), 8)
+	elseif n:match("'(.)'") then  -- char-literal
+		return string.byte(n:match("'(.)'"))
 	else  -- doesn't seem to be anything special, decimal?
 		return tonumber(n) 
 	end
@@ -513,7 +515,7 @@ function _M.scrub(s)
 	s = s..'\n'
 
 	for l in string.gmatch(s, "[^\n]*\n") do
-		s = string.match(l, "[^#\"';]*")
+		s = string.match(l, "[^#\";]*")
 		if s ~= "\n" and s:match("(%S+)") then 
 			t[#t+1]=	s
 		end
@@ -550,7 +552,7 @@ function _M.parse(t, verbose)
 	
 	--  parse statements into operands and parms
 	local op, a, b, c, d
-	local match = "([&%[]?[%%$]?[%w_]*%]?)[,%s]*(.*)"
+	local match = "([&%[]?[%%$*]?[%w_']*[%]]?)[,%s]*(.*)"
 	for i=1,#t do
 		op, a = string.match(t[i], match)
 		if a then
