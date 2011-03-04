@@ -89,13 +89,12 @@ local function stringtodata(str)
 	return t
 end
 
--- a very coarse and generally poor wait/"sleep" function.
+-- a coarse wait/"sleep" function.
+-- involves busy-waiting
 local function wait(n)
-	local t, nt, dt = os.time(), nil, 0
-	repeat
-		nt = os.time()
-		dt = os.difftime(nt, t)
-	until dt >= n
+	local clk = os.clock
+	local start, dt = clk()
+	repeat dt = clk()-start until dt >= n
 	return dt
 end
 
@@ -509,11 +508,8 @@ end
 -- 
 -- returns: status-code
 function _M:deviceWrite(adr, val)
-	print("devwrite: ", adr, val)
 	if not self.portmap[adr] then
 		return false, device.DEV_STATUS_FAULTED end
-
-	print("devwritting: ", adr, val)
 
 	return self.portmap[adr]:writeport(adr, val)
 end
@@ -522,11 +518,8 @@ end
 -- 
 -- returns: status-code
 function _M:deviceRead(adr)
-	print("devread: ", adr)
 	if not self.portmap[adr] then 
 		return false, device.DEV_STATUS_FAULTED end
-
-	print("devreading: ", adr)
 
 	return self.portmap[adr]:readport(adr)
 end
