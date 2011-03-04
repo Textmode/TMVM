@@ -1,5 +1,6 @@
 
 local bitfield = require "bitfield"
+local device = require "device"
 
 local _M = {_NAME="machine", number=0}
 
@@ -13,6 +14,7 @@ local maxmem = 256
 local HERTZ = 1
 local KILOHERTZ = 1000*HERTZ
 local MEGAHERTZ = 1000*KILOHERTZ
+local GIGAHERTZ = 1000*MEGAHERTZ -- who would ever need such a ridiculous figure?
 
 -------------------------------------------------------------------------
 -- SIGNALS
@@ -30,20 +32,6 @@ local signals = {
 	[SIG_DEVICE_NOT_READY]    = "Device Not Ready";
 	[SIG_DOUBLE_FAULT]        = "Double Fault";
 	[SIG_TRIPLE_FAULT]        = "Triple Fault (halting fault)";
-	}
-
-local DEV_NONE      =0x00
-local DEV_TERMINAL  =0x01
-local DEV_STREAM    =0x02
-local DEV_STORE     =0x03
-local DEV_NETWORK   =0x04
-
-local devices = {
-	[DEV_NONE]     = "Null Device";
-	[DEV_TERMINAL] = "Terminal Device";
-	[DEV_STREAM]   = "Datastream Device";
-	[DEV_STORE]    = "Persistant Storage Device";
-	[DEV_NETWORK]  = "Networking Device";
 	}
 	
 
@@ -287,7 +275,13 @@ _M.iset = {
 	--  free-register I/O port read
 	[0x17]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self[b] = self:deviceRead(self[a])
+
+		local ret, err = self:deviceRead(self[a])
+		if not ret then
+			self:signal(SIG_DEVICE_NOT_READY)
+		else
+			self[b] = ret
+		end
 		return 2;
 	end;
 	
@@ -296,7 +290,11 @@ _M.iset = {
 	--  free-register I/O port write
 	[0x18]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
-		self:deviceWrite(self[a], self[b])
+
+		local ret, err = self:deviceWrite(self[a], self[b])
+		if not ret then
+			self:signal(SIG_DEVICE_NOT_READY)
+		end
 		return 2;
 	end;
 	-- MUL R, R -> RET
@@ -431,7 +429,7 @@ end
 function _M:new(name)
 
 	_M.number = _M.number+1
-	name = name or ("Machine_%02x"):format(_M.number)
+	name = name or ("%s %02x"):format(device:generatename(device.DEV_TYPE_MACHINE),_M.number)
 	local m = {name=name, time = 0, speed=_M.speed, memory={}, devices={};
 		IP=0,			-- Instruction Pointer
 		SIG=0,		-- SIGnal register
@@ -471,49 +469,47 @@ end
 -- should creation fail, it returns nil.
 --
 -- Returns: dev-id
-function _M:deviceCreate(devtype, ...)
-	local idx = #self.devices + 1
-	if devtype == DEV_TERMINAL or devtype == DEV_STREAM then
-		local dev =  {idx=idx, type=devtype, pout=nop, pin=nop}
-		dev.name = (devtype == DEV_TERMINAL and "Acme Accuterm") or "Perfetion port" -- deliberate typo
-		dev.stream = io.open(("%s--%d--%s.log"):format(self.name, idx, dev.name), "w")
-		
-		pout = function(self, val)
-			self.stream:write(string.char(val))
-			return 0
+function _M:deviceInstall(dev)
+	local idx, _ = #self.devices + 1
+	
+	local p_map, err = dev:findports(self.portmap)
+	
+	if p_map then
+		for i, p in pairs(p_map) do
+			if not self.portmap[p] then
+				return false, "port conflict" end
+			self.portmap[p]=dev:registerport(p, i)
 		end
-		
-		pin = function(self)
-			return 0;
-		end
-
-		self.devices[idx] = dev
-		return idx
-	elseif devtype == DEV_NONE then
-		local dev =  {type=devtype, pout=nop, pin=nop}
-		dev.name = "Mu"
-
-		self.devices[idx] = dev
-		return idx
 	else
-		return nil
+		return false, err
+	end
+	
+	local t, err = device:start(self, idx, portmap)
+	if t then
+		self.devices[idx] = device
+	else
+		return false, "start error: "..tostring(err)
 	end
 end
 
 -- attempt to use port io to write val to device id
 -- 
 -- returns: status-code
-function _M:deviceWrite(id, val)
-	if not self.devices[id] then self:signal(SIG_DEVICE_NOT_READY) end
-	return self.device[id]:pout(val)
+function _M:deviceWrite(adr, val)
+	if not self.portmap[adr] then
+		return false, device.DEV_STATUS_FAULTED end
+
+	return self.device[id]:writeport(adr, val)
 end
 
 -- attempt to use port io to write val to device id
 -- 
 -- returns: status-code
-function _M:deviceRead(id, val)
-	if not self.devices[id] then self:signal(SIG_DEVICE_NOT_READY) end
-	return self.device[id]:pin()
+function _M:deviceRead(adr)
+	if not self.portmap[adr] then 
+		return false, device.DEV_STATUS_FAULTED end
+
+	return self.device[id]:readport(adr)
 end
 
 -- Causes the field-circus to services the indicated device,
