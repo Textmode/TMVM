@@ -9,7 +9,9 @@ local _MT = {__index=_M}
 
 -------------------------------------------------------------------------
 -- KEY VALUES
-local maxmem = 256
+local maxmem      = 256
+local maxport     = 256
+local maxsegments = 256
 
 local HERTZ = 1
 local KILOHERTZ = 1000*HERTZ
@@ -430,7 +432,7 @@ function _M:new(name)
 
 	_M.number = _M.number+1
 	name = name or ("%s %02x"):format(device:generatename(device.DEV_TYPE_MACHINE),_M.number)
-	local m = {name=name, time = 0, speed=_M.speed, memory={}, devices={};
+	local m = {name=name, time = 0, speed=_M.speed, memory={}, devices={}, portmap={};
 		IP=0,			-- Instruction Pointer
 		SIG=0,		-- SIGnal register
 		SEG=0,		-- SEGment Pointer
@@ -444,6 +446,9 @@ function _M:new(name)
 	for i=0,maxmem do
 		m.memory[i] = 0--math.random(256)-1
 	end
+	
+	m:deviceInstall(device:new{type=device.DEV_TYPE_NONE})
+	m:deviceInstall(device:new{type=device.DEV_TYPE_TERMINAL})
 	
 	return m
 end
@@ -484,7 +489,7 @@ function _M:deviceInstall(dev)
 		return false, err
 	end
 	
-	local t, err = device:start(self, idx, portmap)
+	local t, err = device:start(self, idx)
 	if t then
 		self.devices[idx] = device
 	else
