@@ -7,4 +7,6 @@
 *.seg
 *.luac
 *.out
+*.log
+ig-*
 
