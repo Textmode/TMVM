@@ -151,7 +151,7 @@ local function initclock(d)
 				return math.floor((t.year-1980) % 256)
 			elseif val == st.CLOCK_STATE_DAYRATIO then
 				local t  = os.date("!*t")
-				local d  = ((t.hour*60)+(t.min*60)*60)+t.sec
+				local d  = (((t.hour*60)+(t.min*60))*60)+t.sec
 				local fd = 86400
 				return math.floor(((d/fd)*255) % 256)
 			end
