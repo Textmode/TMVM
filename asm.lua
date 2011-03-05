@@ -459,30 +459,35 @@ local encoders = {
 		return string.char(0x13, reg_encode(av, bv))
 	end;
 	SHL = function(a, b, c)
-		assert(a and b and not c, "SHL must be properly qualified: 'SHL R1,R2'")
+		assert(a and b and c, "SHL must be properly qualified: 'SHL R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "SHL only works with absolute registers")
 		assert(aa and ba, "SHL only works with absolute registers")
+		assert(ca and cv=='RET', "SHL may only place its result in RET")
 		
 		return string.char(0x14, reg_encode(av, bv))
 	end;
 	SHR = function(a, b, c)
-		assert(a and b and not c, "SHR must be properly qualified: 'SHR R1,R2'")
+		assert(a and b and c, "SHR must be properly qualified: 'SHR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "SHR only works with absolute registers")
 		assert(aa and ba, "SHR only works with absolute registers")
+		assert(ca and cv=='RET', "SHR may only place its result in RET")
 		
 		return string.char(0x15, reg_encode(av, bv))
 	end;
 	SRE = function(a, b, c)
-		assert(a and b and not c, "SRE must be properly qualified: 'SRE R1,R2'")
+		assert(a and b and c, "SRE must be properly qualified: 'SRE R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "SRE only works with absolute registers")
 		assert(aa and ba, "SRE only works with absolute registers")
+		assert(ca and cv=='RET', "SHR may only place its result in RET")
 		
 		return string.char(0x16, reg_encode(av, bv))
 	end;
