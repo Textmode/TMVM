@@ -139,12 +139,19 @@ local encoders = {
 		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "ADD only works with registers")
 		assert(aa and ba,  "ADD only works with absolute parms")
-		assert(cf == 'register' and ca and cv=='ACC', "ADD only supports absolute ACC as a destination")
-		
-		if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
-			return string.char(0x09)
-		else -- free-register form
-			return string.char(0x06, reg_encode(av, bv))
+		assert(cf == 'register' and ca and (cv=='ACC' or cv=='RET'), "ADD only supports absolute ACC or RET as a destination")
+		if cv == 'ACC' then
+			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
+				return string.char(0x09)
+			else -- free-register form
+				return string.char(0x06, reg_encode(av, bv))
+			end
+		elseif cv=='RET' then
+			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
+				return string.char(0xa6)
+			else -- free-register form
+				return string.char(0xa4, reg_encode(av, bv))
+			end
 		end
 		error("unhandled ADD form!")
 	end;
@@ -157,8 +164,19 @@ local encoders = {
 		assert(aa and ba,  "SUB only works with absolute parms")
 		assert(cf == 'register' and ca and cv=='ACC', "SUB only supports absolute ACC as a destination")
 		
-		 -- free-register form
-		return string.char(0x1a, reg_encode(av, bv))
+		if cv == 'ACC' then
+			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
+				return string.char(0xa7)
+			else -- free-register form
+				return string.char(0x06, reg_encode(av, bv))
+			end
+		elseif cv=='RET' then
+			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
+				return string.char(0xa5)
+			else -- free-register form
+				return string.char(0x20, reg_encode(av, bv))
+			end
+		end
 	end;
 	DIV = function(a, b, c)
 		assert(a and b and c, "DIV must be properly qualified: 'DIV R1,R2,RET'")

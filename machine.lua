@@ -307,21 +307,22 @@ _M.iset = {
 		self.RET = round((self[a] * self[b]) % 256)
 		return 2;
 	end;
-	-- SUB .A:.B -> .ACC
-	--  fixed-register AB ADDition, results in ACC
+	-- SUB R1:.R2 -> .ACC
+	--  free-register ADDition, results in ACC
 	[0x1a]=function(self) 
-		self.ACC = (self.A - self.B) % 256
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.ACC = (self[a] - self[b]) % 256
 		return 2;
 	end;	
 	-- MOD R, R -> RET
-	--  Free-register Multiply
+	--  Free-register Modulo
 	[0x1b]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = round((self[a] % self[b]) % 256)
 		return 2;
 	end;
 	-- MOD R, R -> ACC
-	--  Free-register Multiply
+	--  Free-register Modulo
 	[0x1c]=function(self) 
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.ACC = round((self[a] % self[b]) % 256)
@@ -350,8 +351,17 @@ _M.iset = {
 		self.ACC = (self.ACC-1) % 256
 		return 1
 	end;
-	
-	
+
+
+	-- SUB R1:R2 -> RET
+	--  Free-register SUBtraction, results in RET
+	[0x20]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.RET = (self[a] - self[b]) % 256
+		return 1;
+	end;	
+
+
 	-- EQL .A:.B -> .RET 
 	--  fixed-register AB equals, results in RET
 	[0xa0]=function(self) 
@@ -379,8 +389,33 @@ _M.iset = {
 		self.RET = ({[true]=1,[false]=0})[self.A > self.B]
 		return 1;
 	end;
-	
-	
+	-- ADD R:R -> .RET
+	--  free-register ADDition, results in ACC
+	[0xa4]=function(self) 
+		local a, b = convreg(self, self.memory[self.IP+1])
+		self.RET = (self[a] + self[b]) % 256
+		return 2;
+	end;
+	-- SUB .A:.B -> .RET
+	--  fixed-register AB SUBtraction, results in RET
+	[0xa5]=function(self) 
+		self.RET = (self.A - self.B) % 256
+		return 1;
+	end;	
+	-- ADD .A:.B -> .RET
+	--  fixed-register AB ADDition, results in RET
+	[0xa6]=function(self) 
+		self.RET = (self.A + self.B) % 256
+		return 1;
+	end;	
+	-- SUB .A:.B -> .ACC
+	--  fixed-register AB SUBtraction, results in ACC
+	[0xa7]=function(self) 
+		self.ACC = (self.A - self.B) % 256
+		return 1;
+	end;	
+
+
 	-- HLT 
 	--  halts the machine
 	[0xff]=function(self) 
