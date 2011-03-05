@@ -13,6 +13,7 @@ _M.DEV_TYPE_TERMINAL  = 0x02
 _M.DEV_TYPE_STREAM    = 0x03
 _M.DEV_TYPE_STORE     = 0x04
 _M.DEV_TYPE_NETWORK   = 0x05
+_M.DEV_TYPE_CLOCK     = 0x06
 _M.DEV_TYPE_MACHINE   = 0xff
 
 _M.DEV_STATUS_READY    = 0x00  -- Device is ready
@@ -54,6 +55,115 @@ end
 
 namer = namedevice
 
+
+local function initstream(d)
+		local dev =  {idx=idx, type=devtype}
+		d.stream = {}
+		
+		d.receive = function(self, pin, val)
+			assert(self.started, "Not Started!")
+			self.stream:write(string.char(val))
+			return 0
+		end
+		
+		d.send = function(self, pin)
+			assert(self.started, "Not Started!")
+			return 0;
+		end
+		if d.type == _M.DEV_TYPE_TERMINAL then
+			d.portmaps = {{1}}
+		else
+			d.portmaps = {{10}, {20}, {30}, {40}}
+		end
+		
+	return d
+end
+
+local function initnull(d)
+	d.portmaps = {{0}}
+
+	d.receive = function(self, pin, val)
+		assert(self.started, "Not Started!")
+		return 0
+	end
+	
+	d.send = function(self, pin)
+		assert(self.started, "Not Started!")
+		return 0
+	end
+	
+	return d
+end
+
+local function initclock(d)
+	d.portmaps = {{42}}
+	
+	d.states ={
+		CLOCK_STATE_DEFAULT  = 0x0, CLOCK_STATE_SECONDS = 0x1,
+		CLOCK_STATE_MINUTES  = 0x2, CLOCK_STATE_HOURS   = 0x3,
+		CLOCK_STATE_MONTHDAY = 0x4, CLOCK_STATE_WEEKDAY = 0x4,
+		CLOCK_STATE_MONTH    = 0x5, CLOCK_STATE_YEAR    = 0x6,
+		CLOCK_STATE_DAYRATIO = 0x7 }
+		
+	d.state = d.states.CLOCK_STATE_DEFAULT
+	
+	d.receive = function(self, pin, val)
+		assert(self.started, "Not Started!")
+		if val >= self.states.CLOCK_STATE_DEFAULT and
+				val <= self.states.CLOCK_STATE_YEAR then
+				
+			self.state = val
+		else
+			return false, _M.DEV_STATUS_BLOCKED
+		end
+		return 0
+	end
+	
+	d.send = function(self, pin)
+		assert(self.started, "Not Started!")
+		local val = self.state
+		local st = self.states
+		if val >= self.states.CLOCK_STATE_DEFAULT and
+				val <= self.states.CLOCK_STATE_YEAR then
+			
+			if val == st.CLOCK_STATE_DEFAULT then
+				return math.floor(os.time() % 256)
+			elseif val == st.CLOCK_STATE_SECONDS then
+				local t = os.date("!*t")
+				return math.floor(t.sec % 256)
+			elseif val == st.CLOCK_STATE_MINUTES then
+				local t = os.date("!*t")
+				return math.floor(t.min % 256)
+			elseif val == st.CLOCK_STATE_HOURS then
+				local t = os.date("!*t")
+				return math.floor(t.hour % 256)
+			elseif val == st.CLOCK_STATE_MONTHDAY then
+				local t = os.date("!*t")
+				return math.floor(t.day % 256)
+			elseif val == st.CLOCK_STATE_WEEKDAY then
+				local t = os.date("!*t")
+				return math.floor(t.wday % 256)
+			elseif val == st.CLOCK_STATE_MONTH then
+				local t = os.date("!*t")
+				return math.floor(t.month % 256)
+			elseif val == st.CLOCK_STATE_YEAR then
+				local t = os.date("!*t")
+				return math.floor((t.year-1980) % 256)
+			elseif val == st.CLOCK_STATE_DAYRATIO then
+				local t  = os.date("!*t")
+				local d  = ((t.hour*60)+(t.min*60)*60)+t.sec
+				local fd = 86400
+				return math.floor(((d/fd)*255) % 256)
+			end
+		else
+			return false, _M.DEV_STATUS_BLOCKED
+		end
+		return 42
+	end
+
+	return d
+end
+
 -------------------------------------------------------------------------
 -- exports
 
@@ -66,41 +176,15 @@ function _M:new(t)
 		portmaps = t.portmaps, portmap={}}
 	setmetatable(d, _MT)
 	
-	if d.type == _M.DEV_TYPE_TERMINAL or d.type == _M.DEV_TYPE_STREAM then
-		local dev =  {idx=idx, type=devtype}
-		self.stream = {}
-		
-		self.receive = function(self, pin, val)
-			assert(self.started, "Not Started!")
-			self.stream:write(string.char(val))
-			return 0
-		end
-		
-		self.send = function(self, pin)
-			assert(self.started, "Not Started!")
-			return 0;
-		end
-		if d.type == _M.DEV_TYPE_TERMINAL then
-			d.portmaps = {{1}}
-		else
-			d.portmaps = {{10}, {20}, {30}, {40}}
-		end
-		
+	if d.type == _M.DEV_TYPE_TERMINAL
+		or d.type == _M.DEV_TYPE_STREAM then
+		d=initstream(d)
 	elseif d.type == _M.DEV_TYPE_NONE then
-		self.receive = function(self, pin, val)
-			assert(self.started, "Not Started!")
-			return 0
-		end
-		
-		self.send = function(self, pin)
-			assert(self.started, "Not Started!")
-			return 0
-		end
-
-		d.portmaps = {{0}}
-
+		d=initnull(d)
+	elseif d.type == _M.DEV_TYPE_CLOCK then
+		d=initclock(d)
 	else
-		error("Unknown device type: "..tostring(d.type), 2)
+		error(("Unknown device type: '%s'"):format(tostring(d.type)))
 	end
 
 	return d
@@ -153,6 +237,10 @@ function _M:start(host, idx)
 		return _M.DEV_STATUS_READY;
 	elseif self.type == _M.DEV_TYPE_NONE then
 
+		self.started = true
+		return _M.DEV_STATUS_READY;
+	elseif self.type == _M.DEV_TYPE_CLOCK then
+		-- nothing doing.
 		self.started = true
 		return _M.DEV_STATUS_READY;
 	else
