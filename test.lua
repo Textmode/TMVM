@@ -163,6 +163,16 @@ test:newsubsection("shifts")
 	test("multi shift left (simple)",
 		"local b = bitfield:new(16); b:shift(-4); return b.value", 1)
 
+test:newsubsection("rolls")
+	test("single roll left (simple)",
+		"local b = bitfield:new(1, 3); b:roll(1); return b.value", 2)
+	test("multi roll left (simple)",
+		"local b = bitfield:new(1, 3); b:roll(4); return b.value", 2)
+	test("single roll right (simple)",
+		"local b = bitfield:new(1, 3); b:roll(-1); return b.value", 4)
+	test("multi roll right (simple)",
+		"local b = bitfield:new(2, 3); b:roll(-4); return b.value", 1)
+
 -------------------------------------------------------------------------
 test:newsection("FUASSM")
 require 'asm'
