@@ -79,7 +79,7 @@ test:newsection("Bitfield")
 
 bitfield = require 'bitfield'
 test:newsubsection("Core")
-	test("Creation, indexing, and printing", 
+	test("Creation, indexing, and formatting", 
 		"local b = bitfield:new(); return tostring(b)", '0000000000000000b')
 	test("Initialisation", 
 		"local b = bitfield:new(42); return b.value", 42)
@@ -194,22 +194,51 @@ test:newsection("Machine")
 require 'machine'
 
 test:newsubsection("Opcodes")
-	test("MNZ, conditional set - true",
+	test("MOV - A clearing house forms",
 		[=[
 		local m = machine:new(1)
-		testp = {0x05, 0x01, 0x08, 0x05, 0x01, 0xa0, 0x0e, 0x41, 0x2a, 0xff}
+		testp = asm.parse(asm.scrub[[
+		MOV $42, A
+		MOV A, &$42
+		MOV &$42,A
+		MOV A, &$42
+		HLT
+		]])
 		m:load(testp)
 		m:cycle(10)
-		return m.memory[42]
-		]=], 1)
-	test("MNZ, conditional set - false",
+		return m.memory[0x42] == 0x42
+		]=], true)
+	test("MOV - B clearing house forms",
 		[=[
 		local m = machine:new(1)
-		testp = {0x05, 0x01, 0x08, 0x00, 0x00, 0xa0, 0x0e, 0x41, 0x2a, 0xff}
+		testp = asm.parse(asm.scrub[[
+		MOV $42, B
+		MOV B, &$42
+		MOV &$42,B
+		MOV B, &$42
+		HLT
+		]])
 		m:load(testp)
 		m:cycle(10)
-		return m.memory[42]
-		]=], 1)
+		return m.memory[0x42] == 0x42
+		]=], true)
+	test("MNZ, conditional set",
+		[=[
+		local m = machine:new(1)
+		testp = asm.parse(asm.scrub[[
+		MOV $01,A
+		MOV $01,B
+		EQL A, B, RET
+		MNZ RET, A, $2a
+		MOV $00,B
+		EQL A, B, RET
+		MNZ RET, A, $42
+		HLT
+		]])
+		m:load(testp)
+		m:cycle(10)
+		return (m.memory[0x2a] == 1) and m.memory[0x42] ~= 1
+		]=], true)
 
 
 
