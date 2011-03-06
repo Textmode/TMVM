@@ -509,7 +509,7 @@ function _M:signal(sig)
 		return self.SIG
 	end
 	
-	if self.SIG == SIG_DOUBLE then
+	if self.SIG == SIG_DOUBLE_FAULT then
 		self.SIG = SIG_TRIPLE_FAULT
 		self.state = 'halt'
 	elseif self.SIG ~= SIG_NONE then
