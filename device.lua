@@ -230,7 +230,7 @@ function _M:start(host, idx)
 
 	if self.type == _M.DEV_TYPE_TERMINAL or self.type == _M.DEV_TYPE_STREAM then
 		local fname = string.format("%s--%d--%s.log", self.host.name, self.idx, self.name)
-		self.stream = io.open(fname, "w")
+		self.stream = io.open(fname, "wb")
 		assert(self.stream, "Could not open stream")
 		
 		self.started = true

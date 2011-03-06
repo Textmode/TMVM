@@ -553,7 +553,7 @@ local scrub = _M.scrub
 -- loads the given file and returns a normalised chunk, suitable for
 --  further parsing.
 function _M.load(fname)
-	local f, err = io.open(fname)
+	local f, err = io.open(fname, 'rb')
 	if not f then return nil, err end
 	
 	local t = scrub(f:read('*a'))
@@ -665,7 +665,7 @@ if arg and arg[0] and (arg[0]=='asm.lua' or arg[0]=='asm') then
 
 	print(string.format("Writting '%s'", tostring(outf)))
 	
-	outf, err = io.open(outf, "w")
+	outf, err = io.open(outf, "wb")
 	assert(outf, err)
 	chk, err = _M.parse(chk, true)
 	
