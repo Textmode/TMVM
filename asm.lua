@@ -661,7 +661,8 @@ function _M.parse(t, verbose)
 				return false, msg
 			end
 
-			if verbose then print(string.format("%s %s, %s, %s", tos(op), tos(a), tos(b), tos(c))) end
+			if verbose then print(string.format("%04x: %s %s, %s, %s",
+				len, tos(op), tos(a), tos(b), tos(c))) end
 			suc, r, patch = pcall(encoders[op], a, b, c, d)
 			if suc then
 				assert(r, ("[line %d: %s %s,%s,%s # No valid reduction.]"):
