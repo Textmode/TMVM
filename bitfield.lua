@@ -209,7 +209,7 @@ function _M.shift(a, n, sinex)
 	if n == 0 then return a.value end
 
 	local r = a.value
-	if n > 0 then 
+	if n > 0 then
 		for i=1,n do
 			r = r+r
 		end
@@ -230,6 +230,29 @@ function _M.shift(a, n, sinex)
 	a.value = math.floor(r % bin(a.width+1))
 	return a.value
 end
+
+-- Rolls the value of a by n. Additionally returns the resulting value.
+--  Positive values roll left, negative values roll right.
+-- A roll is similar to a shift, however values that fall of one end
+--  simply return to the other end. thus rolling 100b left one would be
+--  001b. and again would be 010b
+--   (thanks to GeDaMo)
+-- Returns: num
+function _M.roll(a, n)
+	a = (isbf(a) and a) or _M:new(a)
+	
+	if n == 0 then return a.value end
+
+	if (a.value >= 2^a.width-1) then
+		--print(a.value, a.value)
+	else
+		a.value = (a.value * 2^(n % a.width)) % (2^a.width-1)
+	end
+	
+--	a.value = math.floor(r % bin(a.width)+1)
+	return a.value
+end
+
 
 -------------------------------------------------------------------------
 -- MODULE TAIL
