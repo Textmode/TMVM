@@ -1,8 +1,8 @@
 Textmode Virtual Macaroni, or TMVM,  is a simple, poorly-designed, 
  simulation of a register-based system.
-It currently has an addressable memory space of 256 bytes (00..ff) 
- (Segments are planned, but not yet implemented). It runs at a nominal
- speed of 1MHz.
+It currently has an addressable memory space of 256 segments containing 
+256 bytes (00..ff) each, for a total of 65536 bytes (or 64KiB).
+It runs at a nominal speed of 1MHz.
 
 It's not presently useful for much of anything, it is also likely to be
  unstable and unreliable, so have fun! :D
@@ -23,41 +23,53 @@ TMVM is created by DMB/Textmode, while ignoring the well thought-out
 	IRC: #TMVM on irc.freenode.org:8001
 	Project: https://github.com/Textmode/TMVM
 
-== Requirements
-	Lua 5.1 or better.
-	A sense of humor.
+# Requirements
+	* Lua 5.1 or better.
+	* A sense of humor.
 	
-== Usage
+# Usage
 
-TMVM is divided into two basic parts; the machine, and the asm.
+TMVM is divided into two basic parts; the machine (AKA Core), and the
+ asm (AKA FUASSM).
+There is also the support lib bitfield.
 
-=== Machine
+The ASM is the component that takes programs expressed in FUASSM code. It
+ is a runnable module.
 
-machine.lua can be required. asm.lua can be required, or run as script
-(eg. 'lua asm.lua file.asm').
+Machine represents functions for creating and managing individual TMVMs.
+ loading data into their memory, and controlling their operation. It is
+ not yet a runnable module, but its likely to become one in the future.
 
-machine exposes the following functions:
+Bitfield contains utility functions for dealing with numbers as bitfields.
+ It provides bitwise operations, binary indexing and similar features
+ required by the core but not provided by lua.
+ 
+## Machine
+
+machine.lua can be required normally.
+
+As a module, machine exposes the following functions:
 	module:new(opt_name)
 		returns: machine
-		creates a new machine with the given name.
-		if no name is given, a default name will be provided.
+		Creates a new machine with the given name.
+		If no name is given, a default name will be provided.
 
 		
 	(VM):signal(opt_signal)
 		returns: signal, description
-		if given no parms, returns the current signal, and a (short) textual
+		If given no parms, returns the current signal, and a (short) textual
 		 description.
-		otherwise it triggers the given signal.
-		if another signal has yet to be cleared, it will trigger a double
+		Otherwise it triggers the given signal.
+		Tf another signal has yet to be cleared, it will trigger a double
 		fault.
-		if a double-fault is uncleared, a triple-fault.
-		triggering a signal NONE will clear the signal.
+		If a double-fault is uncleared, a triple-fault.
+		Triggering the signal NONE will clear the signal.
 
 	
 	(VM):load(opt_start, data_string_or_table)
 		returns: (nothing)
-		attempts to load the given data into the machine's memory.
-		if start is omitted, it will load at address 0, segment 0.
+		Attempts to load the given data into the machine's memory.
+		If start is omitted, it will load at address 0, segment 0.
 
 		
 	(VM):cycle(opt_num)
@@ -68,40 +80,129 @@ machine exposes the following functions:
 		
 	(VM):run(bool_show_status_dumps) -- Broken!
 		returns: (nothing)
-		attempts to run the machine at it's base speed.
+		Attempts to run the machine at it's base speed.
 		if passed true, it will call VM:dump() roughly 1/s
 
 
 	(VM):dump()
 		returns: (nothing)
-		prints state information on the current machine
+		Prints state information on the current machine
 
-=== ASM
+## ASM
 
-asm.lua can be required normally. additionally, it is a valid script and
+asm.lua can be required normally. Additionally, it is a runnable module and
  can be directly run.
- as a program, asm.lua takes the name of a source file, and optionally the
- name of an output file. if no output file is given, it outputs to the
- same filename with the ".crap" replacing it's original extension: thus
- 'test.asm' outputs to 'test.crap'. regardless, it also prints a
- lua-formatted table of hex digit's representing the assembled binary.
  
-asm.lua exposes the following functions:
+As a program, asm.lua takes the name of a TASM source file, and optionally
+ the name of an output file. if no output file is given, it outputs to the
+ same filename with .crap replacing it's original extension: thus
+ 'test.asm' outputs to 'test.crap'. Regardless, it also prints a
+ lua-formatted table of hex digits representing the assembled binary.
+ 
+As a module, it exposes the following functions:
 
 	asm.load(filename)
-	returns: preparsed_chunk
-	loads the given file and returns a normalised chunk, suitable for
-	 further parsing.
+		returns: preparsed_chunk
+		loads the given file and returns a normalised chunk, suitable for
+		 further parsing.
 	
 	
 	asm.scrub(string)
-	returns: preparsed_chunk
-	processes the given string into a pre-parsed chunk, suitable for further
-	 parsing.
+		returns: preparsed_chunk
+		processes the given string into a pre-parsed chunk, suitable for
+		 further parsing.
 	
 	asm.parse(chunk)
-	returns: final_bytestring
-	takes a pre-parsed chunk, and returns a fully-assembled chunk as a
-	 string, suitable for saving or loading into a machine.
+		returns: final_bytestring
+		takes a string or pre-parsed chunk, and returns a fully-assembled
+		 chunk as a string, suitable for saving or loading into a machine.
 
+## Bitfield
+
+Bitfield is a support library, providing emulated bitwise operations for
+ Lua.
+ 
+As a module, it exposes the following functions:
+	bitfield:new(opt_num, opt_width)
+		returns: bitfield
+		Creates and returns a new bitfield. If opt_num is provided, the
+		 initial value of the bitfield will be the binary representation of
+		 that number, otherwise it will be zero. If opt_width is provided it
+		 will be used as the effective bitwidth of the bitfield, otherwise it
+		 will default to 16 bits.
+
+	(bf)[n]
+		returns: bit
+		Returns true if the nth bit is set, otherwise returns false. if a bit
+		 outside the range of the bitfield's width is requested, it returns
+		 nil instead (which is also logically false)
+
+	(bf)[n] = v 
+		returns: (nothing)
+		Sets the nth bit of bf to the truth value of v
+
+	(bf):NOT()
+		returns: num
+		Negates the value of bf. Additionally returns the resulting value.
+			NOT 1 -> 0
+			NOT 0 -> 1
+
+	(bf):AND(b)
+		returns: num
+		ANDs the value of bf with b. Additionally returns the resulting
+		 value.
+			0 AND 0 -> 0
+			0 AND 1 -> 0
+			1 AND 0 -> 0
+			1 AND 1 -> 1
+
+	(bf):OR(b) 
+		returns: num
+		ORs the value of bf with b. Additionally returns the resulting value.
+			0 OR 0 -> 0
+			0 OR 1 -> 1
+			1 OR 0 -> 1
+			1 OR 1 -> 1
+
+	(bf):XOR(b) 
+		returns: num
+		XORs the value of bf with b. Additionally returns the resulting
+		 value.
+			0 XOR 0 -> 0
+			0 XOR 1 -> 1
+			1 XOR 0 -> 1
+			1 XOR 1 -> 0
+
+	(bf):NAND(b) 
+		returns: num
+		NANDs the value of bf with b. Additionally returns the resulting
+		 value.
+			0 NAND 0 -> 1
+			0 NAND 1 -> 1
+			1 NAND 0 -> 1
+			1 NAND 1 -> 0
+
+	(bf):NOR(b) 
+		returns: num
+		NORs the value of bf with b. Additionally returns the resulting value.
+			0 NOR 0 -> 1
+			0 NOR 1 -> 0
+			1 NOR 0 -> 0
+			1 NOR 1 -> 0
+
+	(bf):XNOR(b) 
+		returns: num
+		XNORs the value of bf with b. Additionally returns the resulting
+		 value.
+			0 XNOR 0 -> 1
+			0 XNOR 1 -> 0
+			1 XNOR 0 -> 0
+			1 XNOR 1 -> 1
+
+	(bf):shift(n, sign-ext) 
+		returns: num
+		Shifts the value of bf by n. Additionally returns the resulting
+		 value.
+		Positive values shift left, negative values shift right. if sign-ext
+		 is true, then the sign bit will be extended during a right-shift.
 
