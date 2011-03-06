@@ -39,8 +39,8 @@ local signals = {
 
 -------------------------------------------------------------------------
 -- MISC
-local cr_tbl = {[0x0]='PRM', [0x1]='A',   [0x2]='B', [0x3]='ACC', [0x4]='RET',
-                [0xd]='SIG', [0xe]='SEG', [0xf]='IP' }
+local cr_tbl = {[0x0]='PRM', [0x1]='A',   [0x2]='B',   [0x3]='C',   [0x4]='D',
+                [0x5]='ACC', [0x6]='RET', [0xd]='SIG', [0xe]='SEG', [0xf]='IP' }
 
 
 -------------------------------------------------------------------------
@@ -522,6 +522,8 @@ function _M:new(name)
 		SEG=0,		-- SEGment Pointer
 		A=0,			-- Register A
 		B=0,			-- Register B
+		C=0,			-- Register A
+		D=0,			-- Register B
 		ACC=0,		-- ACCumulator
 		RET=0			-- RETurn, or result
 		}
