@@ -374,7 +374,7 @@ _M.iset = {
 	[0x20]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
 		self.RET = (self[a] - self[b]) % 256
-		return 1;
+		return 2;
 	end;
 	-- MOV nn, B
 	--  Fixed-register literal MOV to B
