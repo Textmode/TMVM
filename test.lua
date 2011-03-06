@@ -197,13 +197,13 @@ test:newsubsection("Opcodes")
 	test("MOV - A clearing house forms",
 		[=[
 		local m = machine:new(1)
-		testp = asm.parse(asm.scrub[[
+		testp = asm.parse[[
 		MOV $42, A
 		MOV A, &$42
 		MOV &$42,A
 		MOV A, &$42
 		HLT
-		]])
+		]]
 		m:load(testp)
 		m:cycle(10)
 		return m.memory[0x42] == 0x42
@@ -211,13 +211,13 @@ test:newsubsection("Opcodes")
 	test("MOV - B clearing house forms",
 		[=[
 		local m = machine:new(1)
-		testp = asm.parse(asm.scrub[[
+		testp = asm.parse[[
 		MOV $42, B
 		MOV B, &$42
 		MOV &$42,B
 		MOV B, &$42
 		HLT
-		]])
+		]]
 		m:load(testp)
 		m:cycle(10)
 		return m.memory[0x42] == 0x42
@@ -225,7 +225,7 @@ test:newsubsection("Opcodes")
 	test("MNZ, conditional set",
 		[=[
 		local m = machine:new(1)
-		testp = asm.parse(asm.scrub[[
+		testp = asm.parse[[
 		MOV $01,A
 		MOV $01,B
 		EQL A, B, RET
@@ -234,7 +234,7 @@ test:newsubsection("Opcodes")
 		EQL A, B, RET
 		MNZ RET, A, $42
 		HLT
-		]])
+		]]
 		m:load(testp)
 		m:cycle(10)
 		return (m.memory[0x2a] == 1) and m.memory[0x42] ~= 1

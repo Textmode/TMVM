@@ -574,6 +574,7 @@ end
 --  string, suitable for saving or loading into a machine.
 function _M.parse(t, verbose)
 	assert(t, "Parse has been given nothing")
+	if type(t) == 'string' then t = _M.scrub(t) end
 	local tos = tostring
 	local chk,p = {}, {}
 	
