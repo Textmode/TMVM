@@ -364,19 +364,19 @@ _M.iset = {
 	--  Fixed-register literal MOV to B
 	[0x21]=function(self) 
 		self.B = self.memory[self.IP+1]
-		return 1;
+		return 2;
 	end;	
 	-- MOV &nn, B
 	--  Fixed-register indirect MOV to B
-	[0x23]=function(self) 
+	[0x22]=function(self) 
 		self.B = self.memory[self.memory[self.IP+1]] 
-		return 1;
+		return 2;
 	end;	
 	-- MOV B, &nn
 	--  Fixed-register indirect MOV from B
 	[0x23]=function(self) 
-		self.memory[self.IP+1] = self.B
-		return 1;
+		self.memory[self.memory[self.IP+1]] = self.B
+		return 2;
 	end;	
 
 
