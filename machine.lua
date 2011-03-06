@@ -359,6 +359,24 @@ _M.iset = {
 		local a, b = convreg(self, self.memory[self.IP+1])
 		self.RET = (self[a] - self[b]) % 256
 		return 1;
+	end;
+	-- MOV nn, B
+	--  Fixed-register literal MOV to B
+	[0x21]=function(self) 
+		self.B = self.memory[self.IP+1]
+		return 1;
+	end;	
+	-- MOV &nn, B
+	--  Fixed-register indirect MOV to B
+	[0x23]=function(self) 
+		self.B = self.memory[self.memory[self.IP+1]] 
+		return 1;
+	end;	
+	-- MOV B, &nn
+	--  Fixed-register indirect MOV from B
+	[0x23]=function(self) 
+		self.memory[self.IP+1] = self.B
+		return 1;
 	end;	
 
 

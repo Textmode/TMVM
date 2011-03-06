@@ -78,6 +78,8 @@ local encoders = {
 		assert(a and b and not c, "MOV must be properly qualified: 'MOV P1,P2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
+		assert(not ((af=='literal' or af=='symbol') and (bf=='literal' or bf=='symbol')),
+			 "All move operations must involve a register, sorry.")
 		
 		if af == 'register' and bf == 'register' then -- free-register form
 			if aa == true and ba == true then -- pure register form
@@ -87,34 +89,37 @@ local encoders = {
 			end
 		end
 		
-		if af == 'literal' and bf=='register' then
+		if (af=='literal' or af=='symbol') and bf=='register' then
 			if aa == true and ba == true then
-				assert(bv=="A", "MOV litteral to (not A) not implemented")
-				return string.char(0x05, tonumber(av))
+				if bv == "A" then
+					return string.char(0x05, (af=='literal' and tonumber(av)) or 0), af=='symbol'
+				elseif bv == "B" then
+					return string.char(0x21, (af=='literal' and tonumber(av)) or 0), af=='symbol'
+				else
+					return false, "No encodings for mixed-mode moves not involving registers A or B"
+				end
 			elseif aa == false and ba == true then -- mixed get form
-				assert(bv=="A", "MOV litteral to (not A) not implemented")
-				return string.char(0x04, tonumber(av))
+				if bv == "A" then
+					return string.char(0x04, (af=='literal' and tonumber(av)) or 0), af=='symbol'
+				elseif bv == "B" then
+					return string.char(0x22, (af=='literal' and tonumber(av)) or 0), af=='symbol'
+				else
+					return false, "No encodings for mixed-mode moves not involving registers A or B"
+				end
 			end
 		end
-		if af == 'register' and bf=='literal' then
+		
+		if af == 'register' and (bf=='literal' or bf=='symbol') then
 			if aa == true and ba == false then -- mixed push/set form
-				assert(av=="A", "MOV litteral from (not A) not implemented")
-				return string.char(0x03, tonumber(bv))
-			end
-		end
-
-		if af == 'symbol' and bf=='register' then
-			if aa == true and ba == true then
-				assert(bv=="A", "MOV symbol to (not A) not implemented")
-				return string.char(0x05, 0x00), true
-			elseif aa == false and ba == true then -- mixed get form
-				return string.char(0x04, 0x00), true
-			end
-		end
-		if af == 'register' and bf=='symbol' then
-			if aa == true and ba == false then -- mixed push/set form
-				assert(av=="A", "MOV symbol from (not A) not implemented")
-				return string.char(0x03, 0x00), true
+				if av == "A" then
+					return string.char(0x03, (bf=='literal' and tonumber(bv)) or 0), bf=='symbol'
+				elseif av == "B" then
+					return string.char(0x23, (bf=='literal' and tonumber(bv)) or 0), bf=='symbol'
+				else
+					return false, "No encodings for mixed-mode moves not involving registers A or B"
+				end
+			else
+				return false, "Impossible operation, perhaps you meant P2 to be indirect?"
 			end
 		end
 	end;
