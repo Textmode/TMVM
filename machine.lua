@@ -675,16 +675,16 @@ end
 --   approximately every second.
 function _M:run(stats)
 	stats = stats or false
-	local time, ntime, dt = os.time(), nil, nil
+	local t, nt, dt = os.clock()
 	
 	while self.state ~= 'halt' do
 		self:cycle(self.speed)
 		
 		if stats then self:dump() end
 		
-		ntime = os.time()
-		dt = os.difftime(time, ntime)
-		if     dt < 1 then wait(1)
+		nt = os.clock()
+		dt = nt-t
+		if     dt < 1 then wait(1-dt)
 		elseif dt > 1 then print("woops, too slow!")
 		end
 		
