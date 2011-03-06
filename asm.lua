@@ -123,6 +123,19 @@ local encoders = {
 			end
 		end
 	end;
+	LMOV = function(a, b, c, d)
+		assert(a and b and c, "SRE must be properly qualified: 'SRE R1,R2,RET'")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
+		local df, da, dv = parm(d)
+		assert(af == 'register' and bf == 'register'
+			and cf == 'register' and df == 'register',
+				"LMOV only works with absolute registers")
+		assert(aa and ba and ca and da, "LMOV only works with absolute registers")
+		
+		return string.char(0x24, reg_encode(av, bv), reg_encode(cv, dv))
+	end;
 	INC = function(a, b, c)
 		assert(a and not (b or c), "INC must be properly qualified: 'INC ACC'")
 		local af, aa, av = parm(a)
@@ -333,12 +346,12 @@ local encoders = {
 		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "LTE only works with registers")
 		assert(aa and ba, "LTE only works with absolute registers")
-		assert(ca and cv=='RET', "GTE may only place its result in RET")
+		assert(ca and cv=='RET', "LTE may only place its result in RET")
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x08,0xa3,0x08) -- swap, lessthan, swap
 		else -- free-register form
-			error("GTE is only currently defined in the form LTE .A,.B")
+			error("LTE is only currently defined in the form LTE .A,.B")
 		end
 		error("unhandled LRT form!")
 	end;
@@ -360,15 +373,27 @@ local encoders = {
 	JMP = function(a, b, c)
 		assert(a and not (b or c), "JMP must be properly qualified: 'JMP nn'")
 		local af, aa, av = parm(a)
-		assert(af=='literal' or af == 'symbol', "Only constant jump targets supported at this time.")
-		assert(aa, "JMP only supports absolute (inline) jump targets at this time.")
+		assert(aa, "JMP only supports absolute jump targets at this time.")
 		
 		if af == 'literal' then 
 			return string.char(0x0b, av)
 		elseif af == 'symbol' then
 			return string.char(0x0b, 0x00), true
+		elseif af == 'register' then
+			return string.char(0x25,  reg_encode('SEG', av))
 		end		
-		error("unhandled JNZ form!")
+		error("unhandled JMP form!")
+	end;
+	LJMP = function(a, b, c)
+		assert(a and b and not c, "LJMP must be properly qualified: 'LJMP R1(seg), R2(offset)'")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		assert(aa and ba, "LJMP only supports absolute jump targets at this time.")
+		assert(af == 'register' and bf == 'register',
+			"LJMP only supports register jump targets at this time.")
+		
+		return string.char(0x25,  reg_encode(av, bv))
+		--error("unhandled LJMP form!")
 	end;
 	LET = function(a, b, c)
 		assert((a and b) and not c, "LET must be properly qualified: 'LET sym,nn'")
@@ -597,7 +622,7 @@ function _M.parse(t, verbose)
 		if b  == "" then b  = nil end
 		if c  == "" then c  = nil end
 		if d  == "" then d  = nil end
-		chk[i]={op=op, a=a, b=b, c=c}
+		chk[i]={op=op, a=a, b=b, c=c, d=d}
 	end
 	
 	-- encode into binary representations

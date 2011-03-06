@@ -98,21 +98,21 @@ local function wait(n)
 	return dt
 end
 
-local function adrshift(m, adr)
+local function adrshift(m, adr, seg)
 	assert(m and adr, "adrshift requires a segment (or machine), and an address")
-	local seg = (type(m)=='number' and m) or m.SEG
+	seg = (type(m)=='number' and m) or (seg or m.SEG)
 	return adr+(seg*256)
 end
 
-local function adrget(m, adr)
+local function adrget(m, adr, seg)
 	assert(m and adr, "adrget requires a segment (or machine), and an address")
-	local seg = (type(m)=='number' and m) or m.SEG
+	seg = seg or m.SEG
 	return m.memory[adr+(seg*256)]
 end
 
-local function adrset(m, adr, value)
+local function adrset(m, adr, value, seg)
 	assert(m and adr, "adrset requires a segment (or machine), and an address")
-	local seg = (type(m)=='number' and m) or m.SEG
+	seg = seg or m.SEG
 	m.memory[adr+(seg*256)] = value
 end
 
@@ -394,6 +394,22 @@ _M.iset = {
 		adrset(self,adrget(self, self.IP+1), self.B)
 		return 2;
 	end;	
+	-- LMOV R1(seg),R2(off),R3(destseg), R4(destoff)
+	--  free-register direct Long-move
+	[0x24]=function(self)
+		local a, b = convreg(self, adrget(self, self.IP+1))
+		local c, d = convreg(self, adrget(self, self.IP+2))
+		adrset(self, self[d], adrget(self, self[b], self[a]), self[c])
+		return 3;
+	end;	
+	-- LJMP R1(seg), R2(off)
+	--  free-register unconditional jump
+	[0x25]=function(self) 
+		local a, b = convreg(self, adrget(self, self.IP+1))
+		self.SEG = self[a]
+		self.IP  = self[b]
+		return 0;
+	end;
 
 
 	-- EQL .A:.B -> .RET 
@@ -666,7 +682,8 @@ end
 -- intended for debugging.
 function _M:dump()
 	printf("%s, %d ticks", self.name, self.time)
-	printf("IP:%02x\tACC:%02x\tRET:%02x\tA:%02x\tB:%02x", self.IP, self.ACC, self.RET, self.A, self.B)
+	printf("IP:%02x\tSEG:%02x\tSIG:%02x\tACC:%02x\tRET:%02x\tA:%02x\tB:%02x",
+		self.IP, self.SEG, self.SIG, self.ACC, self.RET, self.A, self.B)
 	print()
 	
 	for i=0,255, 16 do
