@@ -239,6 +239,25 @@ test:newsubsection("Opcodes")
 		m:cycle(10)
 		return (m.memory[0x2a] == 1) and m.memory[0x42] ~= 1
 		]=], true)
+	test("INC and DEC, increment and decrement",
+		[=[
+		local m = machine:new(1)
+		testp = asm.parse[[
+		MOV $00,A
+		MOV A, ACC
+		INC ACC
+		INC ACC
+		INC ACC
+		DEC ACC
+		DEC ACC
+		MOV ACC, A
+		MOV A, &42
+		HLT
+		]]
+		m:load(testp)
+		m:cycle(10)
+		return m.memory[42] == 1
+		]=], true)
 
 
 
