@@ -410,6 +410,20 @@ _M.iset = {
 		self.IP  = self[b]
 		return 0;
 	end;
+	-- ROL R:R -> .RET
+	--  free-register roll left
+	[0x26]=function(self) 
+		local a, b = convreg(self, adrget(self, self.IP+1))
+		self.RET = bitfield:new(self[a], 8):roll(self[b])
+		return 2;
+	end;
+	-- ROR R:R -> .RET
+	--  free-register roll right
+	[0x27]=function(self) 
+		local a, b = convreg(self, adrget(self, self.IP+1))
+		self.RET = bitfield:new(self[a], 8):roll(-self[b])
+		return 2;
+	end;
 
 
 	-- EQL .A:.B -> .RET 

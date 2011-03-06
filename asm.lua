@@ -539,6 +539,28 @@ local encoders = {
 		
 		return string.char(0x16, reg_encode(av, bv))
 	end;
+	ROL = function(a, b, c)
+		assert(a and b and c, "ROL must be properly qualified: 'ROL R1,R2,RET'")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
+		assert(af == 'register' and bf == 'register', "ROL only works with absolute registers")
+		assert(aa and ba, "ROL only works with absolute registers")
+		assert(ca and cv=='RET', "ROL may only place its result in RET")
+		
+		return string.char(0x26, reg_encode(av, bv))
+	end;
+	ROR = function(a, b, c)
+		assert(a and b and c, "ROR must be properly qualified: 'ROR R1,R2,RET'")
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
+		assert(af == 'register' and bf == 'register', "ROR only works with absolute registers")
+		assert(aa and ba, "ROR only works with absolute registers")
+		assert(ca and cv=='RET', "ROR may only place its result in RET")
+		
+		return string.char(0x27, reg_encode(av, bv))
+	end;
 	IN = function(a, b, c)
 		assert(a and b and not c, "IN must be properly qualified: 'IN R1,R2'")
 		local af, aa, av = parm(a)
