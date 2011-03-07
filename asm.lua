@@ -124,7 +124,7 @@ local encoders = {
 		end
 	end;
 	LMOV = function(a, b, c, d)
-		assert(a and b and c, "SRE must be properly qualified: 'SRE R1,R2,RET'")
+		assert(a and b and c, "LMOV must be properly qualified: 'LMOV R1,R2,R3,R4' (thats seg, offset, destseg, destoffset)")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
