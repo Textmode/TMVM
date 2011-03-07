@@ -68,7 +68,12 @@ local function initstream(d)
 		
 		d.send = function(self, pin)
 			assert(self.started, "Not Started!")
-			return 0;
+			local val = self.istream:read(1)
+			if val then
+				return string.byte(val);
+			else
+				return false, DEV_STATUS_BLOCKED
+			end
 		end
 		if d.type == _M.DEV_TYPE_TERMINAL then
 			d.portmaps = {{1}}
@@ -229,9 +234,13 @@ function _M:start(host, idx)
 	self.portmaps = nil --note plural
 
 	if self.type == _M.DEV_TYPE_TERMINAL or self.type == _M.DEV_TYPE_STREAM then
-		local fname = string.format("%s--%d--%s.log", self.host.name, self.idx, self.name)
-		self.stream = io.open(fname, "wb")
-		assert(self.stream, "Could not open stream")
+		local foname = string.format("%s--%d--%s.log", self.host.name, self.idx, self.name)
+		local finame = string.format("%s-%02x.input", dev_type_names[self.type], self.idx)
+		local err
+		self.stream, err = io.open(foname, "wb")
+		assert(self.stream, "Could not open stream: "..tostring(err))
+		self.istream, err = io.open(finame, "rb")
+		-- failing to open the input is not an error
 		
 		self.started = true
 		return _M.DEV_STATUS_READY;
