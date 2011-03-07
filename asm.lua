@@ -427,13 +427,16 @@ local encoders = {
 		assert(aa and ba, "Values may only be stored in build-time symbols")
 		assert(af=='symbol' and bf=='symbol', "Values may only be stored in valid, unused, symbols")
 		assert(cf =='literal' or cf == 'symbol', "Only build-time values may be used as an initialiser")
+		if cf == 'literal' then 
+			assert(cv == (cv % 256), "a byte initialiser must be a positive value between 00..ff (0..255)")
+		end
 
 		if av and bv then
 			symbols[av] = len%256
 			symbols[bv] = math.floor(len/256)
 		end
 		if cf=='literal' then
-			return string.char(cv%256)
+			return string.char(cv)
 		else
 			return string.char(00), true
 		end
