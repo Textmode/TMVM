@@ -180,7 +180,7 @@ local encoders = {
 		local cf, ca, cv = parm(c)
 		assert(af == 'register' and bf == 'register', "SUB only works with registers")
 		assert(aa and ba,  "SUB only works with absolute parms")
-		assert(cf == 'register' and ca and (cv=='ACC' or ca == 'RET'),
+		assert(cf == 'register' and ca and (cv=='ACC' or cv == 'RET'),
 			 "SUB only supports absolute ACC or RET as a destination")
 		
 		if cv == 'ACC' then
