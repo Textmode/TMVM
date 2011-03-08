@@ -680,19 +680,21 @@ end
 function _M:run(stats)
 	stats = stats or false
 	local t, nt, dt = os.clock()
+	local drift = 0
 	
 	while self.state ~= 'halt' do
+		drift = drift + dt
 		self:cycle(self.speed)
 		
 		if stats then self:dump() end
 		
 		nt = os.clock()
 		dt = nt-t
-		if     dt < 1 then wait(1-dt)
-		elseif dt > 1 then print("woops, too slow!")
+		dt = 1-dt
+		if     dt > 0 then wait(dt)
+--		elseif dt < 0 then
 		end
 		
-		print(self.time)
 		time = ntime
 	end
 end
@@ -725,27 +727,44 @@ if arg and arg[0] and (arg[0]=='machine.lua' or arg[0]=='machine') then
 	local machnum = 1
 	local machs = {}
 
-	local inf, outf, err = arg[1], arg[2], ""
-	
-	local tmp
+	local tmp, tmpfile, err
 	for i=1,machnum do
-		tmp = _M:new()
-		assert(tmp, "Failed to create required machine")
+		tmp, err = _M:new()
+		assert(tmp, "Failed to create required machine: "..tostring(err))
+
+		tmpfile = string.format("machine-%02d.init", i)
+		tmpfile, err = io.open(tmpfile, "rb")
+		if tmpfile then
+			tmp:load(tmpfile:read('*a'))
+			tmpfile:close()
+		else
+			print(string.format("couldn't open 'machine-%02d.init': %s", i, tostring(err)))
+		end
+
 		machs[i] = tmp
 	end
 
-	local time, ntime, dt= os.time(), nil, nil
+	local time, ntime = os.clock(), 0
+	local dt, ndt, drift = 0, 0, 0
+	
 	print("^C to stop...")
 	while true do
-		for i=1,#machs do
-			tmp = machs[i]
-			tmp:cycle(tmp.speed)
+		drift = drift + dt
+		for j=1, 5 do
+			print('cycle')
+			for i=1,#machs do
+				tmp = machs[i]
+				tmp:cycle(tmp.speed/10)
+				print('next!')
+			end
 		end
-		ntime = os.time()
-		dt = os.difftime(time, ntime)
-		if     dt < 1 then wait(1)
-		elseif dt > 1 then print("woops, too slow!")
+		ntime = os.clock()
+		dt = ntime-time
+		ndt = 1-dt
+		if     dt > 0 then dt = wait(ndt); ndt = dt - ndt
+		elseif dt < 0 then io.stderr:write("Cycle overtime\n")
 		end
+		dt=ndt
 		time = ntime
 	end
 
