@@ -9,4 +9,6 @@
 *.out
 *.log
 ig-*
+*.store
+*.input
 
