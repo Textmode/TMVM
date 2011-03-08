@@ -9,8 +9,9 @@ It's not presently useful for much of anything, it is also likely to be
 
 In all honesty, TMVM could be used as a toy system, or as an instructive
  aid (once it's more stable). It's nigh-complete lack of higher-level
- features or space means it's effectively a void, an empty sandpit, in which you can do pretty much
- anything you want without stepping on anything's toes.
+ features or space means it's effectively a void, an empty sandpit, in
+ which you can do pretty much anything you want without stepping on
+ anything's toes.
 
 Note: TMVM is still under development, expect fundamental design and API
  changes.
@@ -93,7 +94,7 @@ As a module, machine exposes the following functions:
 asm.lua can be required normally. Additionally, it is a runnable module and
  can be directly run.
  
-As a program, asm.lua takes the name of a TASM source file, and optionally
+As a program, asm.lua takes the name of a FUASM source file, and optionally
  the name of an output file. if no output file is given, it outputs to the
  same filename with .crap replacing it's original extension: thus
  'test.asm' outputs to 'test.crap'. Regardless, it also prints a
@@ -127,9 +128,9 @@ As a module, it exposes the following functions:
 		returns: bitfield
 		Creates and returns a new bitfield. If opt_num is provided, the
 		 initial value of the bitfield will be the binary representation of
-		 that number, otherwise it will be zero. If opt_width is provided it
-		 will be used as the effective bitwidth of the bitfield, otherwise it
-		 will default to 16 bits.
+		 that number, otherwise it will be zero.
+		If opt_width is provided it will be used as the effective bitwidth
+		of the bitfield, otherwise it will default to 16 bits.
 
 	(bf)[n]
 		returns: bit
