@@ -559,6 +559,10 @@ function _M:new(name)
 	d = device:new{type=device.DEV_TYPE_CLOCK}
 	t, err = m:deviceInstall(d)
 	assert(t, err)
+
+	d = device:new{type=device.DEV_TYPE_STORE}
+	t, err = m:deviceInstall(d)
+	assert(t, err)
 	
 	return m
 end
