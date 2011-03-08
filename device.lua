@@ -126,7 +126,6 @@ local function initstore(d)
 			            (self.byte)
 			self.image:seek('set', self.offset + pos)
 			self.image:write(string.char(val))
-			print('wseek', pos)
 		end
 		return 0
 	end
@@ -144,7 +143,6 @@ local function initstore(d)
 			            (self.block*self.maxbytes)) +
 			            (self.byte)
 			self.image:seek('set', self.offset + pos)
-			print('rseek', pos)
 			return self.image:read(1)
 		end
 		return 0
