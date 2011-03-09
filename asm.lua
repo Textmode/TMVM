@@ -99,11 +99,12 @@ local encoders = {
 		-- MOV easily has the most forms of any instruction in TMVM/FUASSM.
 		-- and as a result this is easily the most complicated and 
 		-- error-prone encoder in FUASSM.
-		assert(a and b and not c, "MOV must be properly qualified: 'MOV P1,P2'")
+		if not (a and b and not c) then
+			return false, "MOV must be properly qualified: 'MOV P1,P2'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(not ((af=='literal' or af=='symbol') and (bf=='literal' or bf=='symbol')),
-			 "All move operations must involve a register, sorry.")
+		if ((af=='literal' or af=='symbol') and (bf=='literal' or bf=='symbol')) then
+			return false, "All move operations must involve a register, sorry." end
 		
 		if af == 'register' and bf == 'register' then -- free-register form
 			if aa == true and ba == true then -- pure register form
@@ -155,46 +156,57 @@ local encoders = {
 		-- the long-move instrution, used to move data too, from, or between
 		-- different segments. at the moment its only defined in pure-register
 		-- forms.
-		assert(a and b and c, "LMOV must be properly qualified: 'LMOV R1,R2,R3,R4' (thats seg, offset, destseg, destoffset)")
+		if not (a and b and c) then
+			return false, "LMOV must be properly qualified: 'LMOV R1,R2,R3,R4' (thats seg, offset, destseg, destoff)" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
 		local df, da, dv = parm(d)
-		assert(af == 'register' and bf == 'register'
-			and cf == 'register' and df == 'register',
-				"LMOV only works with absolute registers")
-		assert(aa and ba and ca and da, "LMOV only works with absolute registers")
+		if not (af == 'register' and bf == 'register'
+				and cf == 'register' and df == 'register') then
+			return false, "LMOV only works with absolute registers" end
+		if not (aa and ba and ca and da) then
+			return false, "LMOV only works with absolute registers" end
 		
 		return string.char(0x24, reg_encode(av, bv), reg_encode(cv, dv))
 	end;
 	INC = function(a, b, c)
 		-- the monopramic increment-by-one instruction., aka ADD 1, R, R
 		-- at the moment its only defined for ACC.
-		assert(a and not (b or c), "INC must be properly qualified: 'INC ACC'")
+		if not (a and not (b or c)) then 
+			return false, "INC must be properly qualified: 'INC ACC'" end
 		local af, aa, av = parm(a)
-		assert(af == 'register' and aa and av=='ACC', "INC only supports absolute ACC as a destination")
+		if not (af == 'register' and aa and av=='ACC') then
+			return false, "INC only supports absolute ACC as a destination" end
 		
 		return string.char(0x01)
 	end;
 	DEC = function(a, b, c)
 		-- the monopramic decrement-by-one instruction., aka SUB 1, R, R
 		-- at the moment its only defined for ACC.
-		assert(a and not (b or c), "DEC must be properly qualified: 'DEC ACC'")
+		if not (a and not (b or c)) then 
+			return false, "DEC must be properly qualified: 'DEC ACC'" end
 		local af, aa, av = parm(a)
-		assert(af == 'register' and aa and av=='ACC', "DEC only supports absolute ACC as a destination")
+		if not (af == 'register' and aa and av=='ACC') then
+			return false, "DEC only supports absolute ACC as a destination" end
 		
 		return string.char(0x1f)
 	end;
 	ADD = function(a, b, c)
 		-- Addtion instruction, performs basic addition
 		
-		assert(a and b and c, "ADD must be properly qualified: 'ADD R1,R2,ACC'")
+		if not (a and b and c) then
+			return false, "ADD must be properly qualified: 'ADD R1,R2,ACC'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "ADD only works with registers")
-		assert(aa and ba,  "ADD only works with absolute parms")
-		assert(cf == 'register' and ca and (cv=='ACC' or cv=='RET'), "ADD only supports absolute ACC or RET as a destination")
+		if not (af == 'register' and bf == 'register') then
+			return false, "ADD only works with registers" end
+		if not (aa and ba) then
+			return false,  "ADD only works with absolute parms" end
+		if not (cf == 'register' and ca and (cv=='ACC' or cv=='RET')) then 
+			return false, "ADD only supports absolute ACC or RET as a destination" end
+			
 		if cv == 'ACC' then
 			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
 				return string.char(0x09)
@@ -208,18 +220,21 @@ local encoders = {
 				return string.char(0xa4, reg_encode(av, bv))
 			end
 		end
-		error("unhandled ADD form!")
+		return false, "unhandled ADD form!"
 	end;
 	SUB = function(a, b, c)
 		-- Subtraction instruction, performs basic subtraction
-		assert(a and b and c, "SUB must be properly qualified: 'SUB R1,R2,ACC'")
+		if not (a and b and c) then
+			return false, "SUB must be properly qualified: 'SUB R1,R2,ACC'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "SUB only works with registers")
-		assert(aa and ba,  "SUB only works with absolute parms")
-		assert(cf == 'register' and ca and (cv=='ACC' or cv == 'RET'),
-			 "SUB only supports absolute ACC or RET as a destination")
+		if not (af == 'register' and bf == 'register') then
+			return false, "SUB only works with registers" end
+		if not (aa and ba) then
+			return false, "SUB only works with absolute parms" end
+		if not (cf == 'register' and ca and (cv=='ACC' or cv == 'RET')) then
+			return false, "SUB only supports absolute ACC or RET as a destination" end
 		
 		if cv == 'ACC' then
 			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
@@ -237,13 +252,17 @@ local encoders = {
 	end;
 	DIV = function(a, b, c)
 		-- Integral, unsigned, division instruction.
-		assert(a and b and c, "DIV must be properly qualified: 'DIV R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "DIV must be properly qualified: 'DIV R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "DIV only works with registers")
-		assert(aa and ba,  "DIV only works with absolute parms")
-		assert(cf == 'register' and ca and (cv=='RET' or cv=='ACC'), "DIV only supports absolute RET or ACC as a destination")
+		if not (af == 'register' and bf == 'register') then
+			return false, "DIV only works with registers" end
+		if not (aa and ba) then
+			return false,  "DIV only works with absolute parms" end
+		if not (cf == 'register' and ca and (cv=='RET' or cv=='ACC')) then 
+			return false, "DIV only supports absolute RET or ACC as a destination" end
 		
 		if cv == 'RET' then
 			return string.char(0xa1, reg_encode(av, bv))
@@ -253,13 +272,17 @@ local encoders = {
 	end;
 	MUL = function(a, b, c)
 		-- Integral, unsigned, Multiplication instruction.
-		assert(a and b and c, "MUL must be properly qualified: 'MUL R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "MUL must be properly qualified: 'MUL R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "MUL only works with registers")
-		assert(aa and ba,  "MUL only works with absolute parms")
-		assert(cf == 'register' and ca and (cv=='RET' or cv=='ACC'), "MUL only supports absolute RET or ACC as a destination.")
+		if not (af == 'register' and bf == 'register') then
+			return false, "MUL only works with registers" end
+		if not (aa and ba) then
+			return false,  "MUL only works with absolute parms" end
+		if not (cf == 'register' and ca and (cv=='RET' or cv=='ACC')) then
+			return false, "MUL only supports absolute RET or ACC as a destination." end
 		
 		if cv == 'RET' then
 			return string.char(0x19, reg_encode(av, bv))
@@ -269,13 +292,17 @@ local encoders = {
 	end;
 	MOD = function(a, b, c)
 		-- Integral, unsigned, Modulo (aka, remainder) instruction.
-		assert(a and b and c, "MOD must be properly qualified: 'MOD R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "MOD must be properly qualified: 'MOD R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "MOD only works with registers")
-		assert(aa and ba,  "MOD only works with absolute parms")
-		assert(cf == 'register' and ca and (cv=='RET' or cv=='ACC'), "MOD only supports absolute RET or ACC as a destination")
+		if not (af == 'register' and bf == 'register') then
+			return false, "MOD only works with registers" end
+		if not (aa and ba) then
+			return false,  "MOD only works with absolute parms" end
+		if not(cf == 'register' and ca and (cv=='RET' or cv=='ACC')) then
+			return false, "MOD only supports absolute RET or ACC as a destination" end
 		
 		if cv == 'RET' then
 			return string.char(0x1b, reg_encode(av, bv))
@@ -286,9 +313,11 @@ local encoders = {
 	SHW = function(a, b, c)
 		-- princibly a debugging instruction, show prints the name of a
 		-- given register, followed by its value (as an unsigned byte)
-		assert(a and not (b or c), "SHW must be properly qualified: 'SHW R'")
+		if not (a and not (b or c)) then
+			return false, "SHW must be properly qualified: 'SHW R'" end
 		local af, aa, av = parm(a)
-		assert(af=='register' and aa, "SHW only presently works for absolute registers")
+		if not (af=='register' and aa) then 
+			return false, "SHW only presently works for absolute registers" end
 		
 		if av=='A' then
 			return string.char(0x0a)
@@ -299,141 +328,171 @@ local encoders = {
 	end;
 	HLT = function(a, b, c)
 		-- halt instruction, tells the machine to halt
-		assert(not (a or b or c), "HLT must be properly qualified: 'HLT'")
+		if not (not (a or b or c)) then
+			return false, "HLT must be properly qualified: 'HLT'" end
 		return string.char(0xff)
 	end;
 	SWP = function(a, b, c)
 		-- swap, exchanges the values of parameters. only defined
 		-- for registers
-		assert((a and b) and not c, "SWP must be properly qualified: 'SWP R1,R2'")
+		if not ((a and b) and not c) then
+			return false, "SWP must be properly qualified: 'SWP R1,R2'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(af == 'register' and bf == 'register', "SWP only works with registers")
-		assert(aa and ba,  "SWP only works with absolute parms")
+		if not (af == 'register' and bf == 'register') then
+			return false, "SWP only works with registers" end
+		if not (aa and ba) then
+			return false,  "SWP only works with absolute parms" end
 		
 		if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
 			return string.char(0x08)
 		else -- free-register form
 			return string.char(0x07, reg_encode(av, bv))
 		end
-		error("unhandled SWP form!")
+		return false, "unhandled SWP form!"
 	end;
 	LES = function(a, b, c)
 		-- less-than instruction, compares two values and stores the result
 		-- in the third
-		assert(a and b and c, "LES must be properly qualified: 'LES R1,R2,RET'")
+		if not (a and b and c) then 
+			return false, "LES must be properly qualified: 'LES R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "LES only works with absolute registers")
-		assert(aa and ba, "LES only works with absolute registers")
-		assert(ca and cv=='RET', "LES may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "LES only works with absolute registers" end
+		if not (aa and ba) then 
+			return false, "LES only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "LES may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x0d)
 		else -- free-register form
 			
 			--return string.char(0x0d)
-			error("LES is only currently defined in the form LES .A,.B")
+			return false, "LES is only currently defined in the form LES .A,.B"
 		end
-		error("unhandled LES form!")
+		return false, "unhandled LES form!"
 	end;
 	GTR = function(a, b, c)
 		-- greater-than instruction, compares two values and stores the
 		-- result in the third
-		assert(a and b and c, "GTR must be properly qualified: 'GTR R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "GTR must be properly qualified: 'GTR R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "GTR only works with absolute registers")
-		assert(aa and ba, "GTR only works with absolute registers")
-		assert(ca and cv=='RET', "GTR may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "GTR only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "GTR only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "GTR may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0xa3)
 		else -- free-register form
 			
 			--return string.char(0x0d)
-			error("GTR is only currently defined in the form GTR .A,.B")
+			return false, "GTR is only currently defined in the form GTR .A,.B"
 		end
 	end;
 	EQL = function(a, b, c)
 		-- equal-to instruction, compares two values and stores the
 		-- result in the third
-		assert(a and b and c, "EQL must be properly qualified: 'EQL R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "EQL must be properly qualified: 'EQL R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "EQL only works with registers")
-		assert(aa and ba, "EQL only works with absolute registers")
-		assert(ca and cv=='RET', "EQL may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "EQL only works with registers" end
+		if not (aa and ba) then
+			return false, "EQL only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "EQL may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0xa0)
 		else -- free-register form
 			
-			error("EQL is only currently defined in the form EQL .A,.B")
+			return false, "EQL is only currently defined in the form EQL .A,.B"
 		end
-		error("unhandled EQL form!")
+		return false, "unhandled EQL form!"
 	end;
 	GTE = function(a, b, c)
 		-- greater-than-or-equal-to instruction, compares two values and
 		-- stores the result in the third
-		assert(a and b and c, "GTE must be properly qualified: 'GTE R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "GTE must be properly qualified: 'GTE R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "GTE only works with registers")
-		assert(aa and ba, "GTE only works with absolute registers")
-		assert(ca and cv=='RET', "GTE may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "GTE only works with registers" end
+		if not (aa and ba) then
+			return false, "GTE only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "GTE may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x08,0x0d,0x08) -- swap, lessthan, swap
 		else -- free-register form
-			error("GTE is only currently defined in the form GTE .A,.B")
+			return false, "GTE is only currently defined in the form GTE .A,.B"
 		end
-		error("unhandled GRT form!")
+		return false, "unhandled GRT form!"
 	end;
 	LTE = function(a, b, c)
 		-- less-than-or-equal-to instruction, compares two values and stores
 		-- the result in the third
-		assert(a and b and c, "LTE must be properly qualified: 'LTE R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "LTE must be properly qualified: 'LTE R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "LTE only works with registers")
-		assert(aa and ba, "LTE only works with absolute registers")
-		assert(ca and cv=='RET', "LTE may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "LTE only works with registers" end
+		if not (aa and ba) then
+			return false, "LTE only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "LTE may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
 			return string.char(0x08,0xa3,0x08) -- swap, lessthan, swap
 		else -- free-register form
-			error("LTE is only currently defined in the form LTE .A,.B")
+			return false, "LTE is only currently defined in the form LTE .A,.B" 
 		end
-		error("unhandled LRT form!")
+		return false, "unhandled LRT form!"
 	end;
 	JNZ = function(a, b, c)
 		-- Jump-if-not-zero, the conditional jump instruction.
-		assert(a and b and (not c), "JNZ must be properly qualified: 'JNZ RET,nn'")
+		if not (a and b and (not c)) then
+			return false,  "JNZ must be properly qualified: 'JNZ RET,nn'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(aa and av=='RET', "JNZ may only test RET at this time.")
-		assert(bf=='literal' or bf == 'symbol', "Only constant jump targets supported at this time.")
-		assert(ba, "JNZ only supports absolute (inline) jump targets at this time.")
+		if not (aa and av=='RET') then
+			return false, "JNZ may only test RET at this time." end
+		if not (bf=='literal' or bf == 'symbol') then
+			return false, "Only constant jump targets supported at this time." end
+		if not (ba) then
+			return false, "JNZ only supports absolute (inline) jump targets at this time." end
 		
 		if bf == 'literal' then 
 			return string.char(0x0c, bv)
 		elseif bf == 'symbol' then
 			return string.char(0x0c, 0x00), true
 		end		
-		error("unhandled JNZ form!")
+		return false, "unhandled JNZ form!"
 	end;
 	JMP = function(a, b, c)
 		-- jump instruction, transfers control to the given in-segment
 		--  address
-		assert(a and not (b or c), "JMP must be properly qualified: 'JMP nn'")
+		if not (a and not (b or c)) then 
+			return false, "JMP must be properly qualified: 'JMP nn'" end
 		local af, aa, av = parm(a)
-		assert(aa, "JMP only supports absolute jump targets at this time.")
+		if not (aa) then
+			return false, "JMP only supports absolute jump targets at this time." end
 		
 		if af == 'literal' then 
 			return string.char(0x0b, av)
@@ -445,29 +504,34 @@ local encoders = {
 			-- a free-register short-jump
 			return string.char(0x25,  reg_encode('SEG', av))
 		end		
-		error("unhandled JMP form!")
+		return false, "unhandled JMP form!"
 	end;
 	LJMP = function(a, b, c)
 		-- long-jump instruction. transfers control to a given address in a
 		-- (potentially) different segment.
-		assert(a and b and not c, "LJMP must be properly qualified: 'LJMP R1(seg), R2(offset)'")
+		if not (a and b and not c) then 
+			return false, "LJMP must be properly qualified: 'LJMP R1(seg), R2(offset)'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(aa and ba, "LJMP only supports absolute jump targets at this time.")
-		assert(af == 'register' and bf == 'register',
-			"LJMP only supports register jump targets at this time.")
+		if not (aa and ba) then
+			return false, "LJMP only supports absolute jump targets at this time." end
+		if not (af == 'register' and bf == 'register') then
+			return false, "LJMP only supports register jump targets at this time." end
 		
 		return string.char(0x25,  reg_encode(av, bv))
-		--error("unhandled LJMP form!")
 	end;
 	LET = function(a, b, c)
 		-- LET psudo-instruction, defines a sybol as the given value.
-		assert((a and b) and not c, "LET must be properly qualified: 'LET sym,nn'")
+		if not ((a and b) and not c) then
+			return false, "LET must be properly qualified: 'LET sym,nn'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(aa and ba, "Values may only be stored in build-time symbols")
-		assert(af=='symbol', "Values may only be stored in valid, unused, symbols")
-		assert(bf=='literal', "only literals, or known symbols may be stored")
+		if not (aa and ba) then
+			return false, "Values may only be stored in build-time symbols" end
+		if not (af=='symbol') then
+			return false, "Values may only be stored in valid, unused, symbols" end
+		if not (bf=='literal') then
+			return false, "only literals, or known symbols may be stored" end
 
 		symbols[a] = tonumber(b) or 0
 		return ""
@@ -475,11 +539,14 @@ local encoders = {
 	LBL = function(a, b, c)
 		-- Label psudo-instruction, sets the named symbols to the offset and 
 		-- segment of the current location.
-		assert(a and b, "LBL must be properly qualified: 'LBL adrsym,optsegsym")
+		if not (a and b) then
+			return false, "LBL must be properly qualified: 'LBL adrsym,optsegsym" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(aa and ba, "Values may only be stored in build-time symbols")
-		assert(af=='symbol' and bf=='symbol', "Values may only be stored in valid, unused, symbols")
+		if not (aa and ba) then
+			return false, "Values may only be stored in build-time symbols" end
+		if not (af=='symbol' and bf=='symbol') then
+			return false, "Values may only be stored in valid, unused, symbols" end
 		
 		if av then symbols[av] = len%256 end
 		if bv then symbols[bv] = math.floor(len/256) end
@@ -493,15 +560,21 @@ local encoders = {
 		--  memory.
 		--
 		-- this mess won't work properly when patching values...
-		assert(a and b and c, "BYTE must be properly qualified: 'BYTE symbol,symbolseg,initialiser")
+		if not (a and b and c) then
+			return false, "BYTE must be properly qualified: 'BYTE symbol,symbolseg,initialiser" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(aa and ba, "Values may only be stored in build-time symbols")
-		assert(af=='symbol' and bf=='symbol', "Values may only be stored in valid, unused, symbols")
-		assert(cf =='literal' or cf == 'symbol', "Only build-time values may be used as an initialiser")
+		if not (aa and ba) then
+			return false, "Values may only be stored in build-time symbols" end
+		if not (af=='symbol' and bf=='symbol') then
+			return false, "Values may only be stored in valid, unused, symbols" end
+		if not (cf =='literal' or cf == 'symbol') then
+			return false, "Only build-time values may be used as an initialiser" end
+		
 		if cf == 'literal' then 
-			assert(cv == (cv % 256), "a byte initialiser must be a positive value between 00..ff (0..255)")
+			if not (cv == (cv % 256)) then
+			return false, "a byte initialiser must be a positive value between 00..ff (0..255)" end
 		end
 
 		if av and bv then
@@ -518,75 +591,85 @@ local encoders = {
 		-- Move-not-zero: the conditional move instruction.
 		-- operates similarly to JNZ, only it performs a move operation
 		-- rather than a jump.
-		assert(a and b and c, "MNZ must be properly qualified: 'MNZ R1,R2,nn'")
-		local af, aa, av
-		local bf, ba, bv
-		local cf, ca, cv
+		if not (a and b and c) then
+			return false, "MNZ must be properly qualified: 'MNZ R1,R2,nn'" end
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		local cf, ca, cv = parm(c)
 
-		if a and b and c then
-			af, aa, av = parm(a)
-			bf, ba, bv = parm(b)
-			cf, ca, cv = parm(c)
-		else
-			af, aa, av = 'register', true, 'RET'
-			bf, ba, bv = parm(a)
-			cf, ca, cv = parm(b)
-		end
-		assert(af == 'register', "Can only test registers at this time")
-		assert(bf == 'register', "Can only conditionally move from registers at this time.")
-		assert(cf=='literal' or cf == 'symbol', "Only constant set values supported at this time.")
-		assert(aa and ba and ca, "MNZ only supports absolute values at this time.")
+		if not (af == 'register') then
+			return false, "Can only test registers at this time" end
+		if not (bf == 'register') then
+			return false, "Can only conditionally move from registers at this time." end
+		if not (cf=='literal' or cf == 'symbol') then
+			return false, "Only constant set values supported at this time." end
+		if not (aa and ba and ca) then
+			return false, "MNZ only supports absolute values at this time." end
 		
 		if bf == 'register' then 
 			return string.char(0x0e, reg_encode(av, bv), cv)
 		elseif bf == 'symbol' then
 			return string.char(0x0e, reg_encode(av, bv), 0x00), true
 		end		
-		error("unhandled MNZ form!")
+		return false, "unhandled MNZ form!"
 	end;
 	
 	NOT = function(a, b, c)
 		-- one's compliment negation instruction
-		assert(a and b and (not c), "NOT must be properly qualified: 'NOT R1, R2'")
+		if not (a and b and (not c)) then
+			return false, "NOT must be properly qualified: 'NOT R1, R2'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(a)
-		assert(af == 'register' and bf == 'register', "NOT only works with absolute registers")
-		assert(aa and ba, "NOT only works with absolute registers")
+		if not (af == 'register' and bf == 'register') then
+			return false, "NOT only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "NOT only works with absolute registers" end
 		
 		return string.char(0x10, reg_encode(av, bv))
 	end;
 	AND = function(a, b, c)
 		-- bitwise-AND instruction
-		assert(a and b and c, "AND must be properly qualified: 'AND R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "AND must be properly qualified: 'AND R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "AND only works with absolute registers")
-		assert(aa and ba, "AND only works with absolute registers")
-		assert(ca and cv=='RET', "AND may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "AND only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "AND only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "AND may only place its result in RET" end
 		
 		return string.char(0x11, reg_encode(av, bv))
 	end;
 	OR = function(a, b, c)
 		-- bitwise-OR instruction
-		assert(a and b and c, "OR must be properly qualified: 'OR R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "OR must be properly qualified: 'OR R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "OR only works with absolute registers")
-		assert(aa and ba, "OR only works with absolute registers")
-		assert(ca and cv=='RET', "OR may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "OR only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "OR only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "OR may only place its result in RET" end
 		
 		return string.char(0x12, reg_encode(av, bv))
 	end;
 	XOR = function(a, b, c)
 		-- bitwise-XOR instruction
-		assert(a and b and c, "XOR must be properly qualified: 'XOR R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "XOR must be properly qualified: 'XOR R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "XOR only works with absolute registers")
-		assert(aa and ba, "XOR only works with absolute registers")
+		if not (af == 'register' and bf == 'register') then
+			return false, "XOR only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "XOR only works with absolute registers" end
 		
 		return string.char(0x13, reg_encode(av, bv))
 	end;
@@ -594,13 +677,17 @@ local encoders = {
 		-- Shift left instruction. shifts the bitpattern of the given value a
 		-- number of positions given in the second parm, and stores the
 		-- result in the third
-		assert(a and b and c, "SHL must be properly qualified: 'SHL R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "SHL must be properly qualified: 'SHL R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "SHL only works with absolute registers")
-		assert(aa and ba, "SHL only works with absolute registers")
-		assert(ca and cv=='RET', "SHL may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "SHL only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "SHL only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "SHL may only place its result in RET" end
 		
 		return string.char(0x14, reg_encode(av, bv))
 	end;
@@ -608,26 +695,34 @@ local encoders = {
 		-- Shift right instruction. shifts the bitpattern of the given value
 		-- a number of positions given in the second parm, and stores the 
 		-- result in the third
-		assert(a and b and c, "SHR must be properly qualified: 'SHR R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "SHR must be properly qualified: 'SHR R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "SHR only works with absolute registers")
-		assert(aa and ba, "SHR only works with absolute registers")
-		assert(ca and cv=='RET', "SHR may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "SHR only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "SHR only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "SHR may only place its result in RET" end
 		
 		return string.char(0x15, reg_encode(av, bv))
 	end;
 	SRE = function(a, b, c)
 		-- similar to SHR, save that it extends the sign-bit, thus
 		-- (generally) preserving the sign of numbers in two's compliment
-		assert(a and b and c, "SRE must be properly qualified: 'SRE R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "SRE must be properly qualified: 'SRE R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "SRE only works with absolute registers")
-		assert(aa and ba, "SRE only works with absolute registers")
-		assert(ca and cv=='RET', "SHR may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "SRE only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "SRE only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "SHR may only place its result in RET" end
 		
 		return string.char(0x16, reg_encode(av, bv))
 	end;
@@ -635,13 +730,17 @@ local encoders = {
 		-- Roll Left instruction. Rolls are similar in effect to shifts,
 		-- however the bits that "fall off" the end are simply replaced at
 		-- the other end
-		assert(a and b and c, "ROL must be properly qualified: 'ROL R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "ROL must be properly qualified: 'ROL R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "ROL only works with absolute registers")
-		assert(aa and ba, "ROL only works with absolute registers")
-		assert(ca and cv=='RET', "ROL may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "ROL only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "ROL only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "ROL may only place its result in RET" end
 		
 		return string.char(0x26, reg_encode(av, bv))
 	end;
@@ -649,13 +748,17 @@ local encoders = {
 		-- Roll Right instruction. Rolls are similar in effect to shifts,
 		-- however the bits that "fall off" the end are simply replaced at
 		-- the other end
-		assert(a and b and c, "ROR must be properly qualified: 'ROR R1,R2,RET'")
+		if not (a and b and c) then
+			return false, "ROR must be properly qualified: 'ROR R1,R2,RET'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
 		local cf, ca, cv = parm(c)
-		assert(af == 'register' and bf == 'register', "ROR only works with absolute registers")
-		assert(aa and ba, "ROR only works with absolute registers")
-		assert(ca and cv=='RET', "ROR may only place its result in RET")
+		if not (af == 'register' and bf == 'register') then
+			return false, "ROR only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "ROR only works with absolute registers" end
+		if not (ca and cv=='RET') then
+			return false, "ROR may only place its result in RET" end
 		
 		return string.char(0x27, reg_encode(av, bv))
 	end;
@@ -663,22 +766,28 @@ local encoders = {
 		-- Device port read instruction. attempts to read a single value
 		-- from the indicated device port, and places it in the location
 		-- indicated by the second parm.
-		assert(a and b and not c, "IN must be properly qualified: 'IN R1,R2'")
+		if not (a and b and not c) then
+			return false, "IN must be properly qualified: 'IN R1,R2'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(af == 'register' and bf == 'register', "IN only works with absolute registers")
-		assert(aa and ba, "IN only works with absolute registers")
+		if not (af == 'register' and bf == 'register') then
+			return false, "IN only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "IN only works with absolute registers" end
 		
 		return string.char(0x17, reg_encode(av, bv))
 	end;
 	OUT = function(a, b, c)
 		-- Device port write instruction. attempts send a given byte of data
 		-- to the indicated device port,
-		assert(a and b and not c, "OUT must be properly qualified: 'OUT R1,R2'")
+		if not (a and b and not c) then
+			return false, "OUT must be properly qualified: 'OUT R1,R2'" end
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
-		assert(af == 'register' and bf == 'register', "OUT only works with absolute registers")
-		assert(aa and ba, "OUT only works with absolute registers")
+		if not (af == 'register' and bf == 'register') then
+			return false, "OUT only works with absolute registers" end
+		if not (aa and ba) then
+			return false, "OUT only works with absolute registers" end
 		
 		return string.char(0x18, reg_encode(av, bv))
 	end;
@@ -695,9 +804,7 @@ function _M.scrub(s)
 	for l in string.gmatch(s, "[^\n]*\n") do
 		s = string.match(l, "[^#\";]*")
 		s = string.match(s, "[\t]*(.*)[\t]*")
-		if s ~= "\n" and s:match("(%S+)") then 
-			t[#t+1]=	s
-		end
+		t[#t+1]=	s
 	end
 	assert(t, "scrub is returning nothing")
 	return t
@@ -780,8 +887,10 @@ function _M.parse(t, verbose)
 				len, tos(op), tos(a), tos(b), tos(c))) end
 			suc, r, patch = pcall(encoders[op], a, b, c, d)
 			if suc then
-				assert(r, ("[line %d: %s %s,%s,%s # No valid reduction.]"):
-					format(i, op, tos(a), tos(b), tos(c), tos(d)))
+				if not r then return false,	
+					string.format("[line %d: %s %s,%s,%s # No valid reduction.]",
+						 i, op, tos(a), tos(b), tos(c), tos(d))
+				end
 			else
 				local lne = string.format("line %d: %s %s,%s,%s", i, tos(op), tos(a), tos(b), tos(c), tos(d))
 				local msg = ("[%s # %s.]"):format(lne, tostring(r))
@@ -848,7 +957,7 @@ if arg and arg[0] and (arg[0]=='asm.lua' or arg[0]=='asm') then
 	if chk then
 		outf:write(chk)
 	else
-		print("Failed.")
+		print("Failed: "..tostring(err))
 		return 1
 	end
 	outf:close()
