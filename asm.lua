@@ -8,6 +8,8 @@ local regnum = {PRM=0x0, A  =0x1, B=0x2, C=0x3, D=0x4, ACC=0x5, RET=0x6,
                 SIG=0xd, SEG=0xe, IP =0xf}
 local regs = {'A', 'B', 'C', 'D', 'ACC', 'RET', 'SIG', 'SEG', 'IP'} 
 
+-- takes two strings indicating registers, and encodes them into a
+-- single free-register byte (taken by some opcodes)
 local function reg_encode(a, b)
 	a = a or 'PRM'
 	b = b or 'PRM'
@@ -36,6 +38,10 @@ local function parsenum(n)
 	end
 end
 
+-- takes a string indicating a potential parameter, and tries to figure
+-- out its type value, and directness.
+--
+-- returns: value_type, pDirect, value
 local function parm(p)
 	assert(p, "Can't check nil parms!")
 	p = string.match(p, "%S+")
@@ -69,12 +75,30 @@ local function parm(p)
 	return form, abs, value
 end
 
+-- the encoder functions take a list of raw parameters and parse them
+-- according to the expectations of the instruction they represent.
+-- having done this, they then attempt to find an opcode that accepts that
+-- combination of parms ( generally starting with the best/most specific
+-- opcodes, and ending with the most generic) and finally attempt to encode
+-- a string representing that combination of opcode(s) and parameters.
+--
+-- certain encoders represent psudo or meta instructions, which do things
+-- like define symbols (LET, LBL) or include data directly in the stream
+-- (BYTE, DATA)
+--
+-- regardless, the encoder ends by returning either the encoded chunk, or 
+-- false, followed by a message explaining the error.
 local encoders = {
 	NOP = function(a, b, c)
+		-- NOP is the do-nothing instruction. it has only one form.
 		assert(not (a or b or c), "NOP must be properly qualified: 'NOP'")
 		return string.char(0x00)	
 	end;
 	MOV = function(a, b, c)
+		-- MOV is the move data instruction.
+		-- MOV easily has the most forms of any instruction in TMVM/FUASSM.
+		-- and as a result this is easily the most complicated and 
+		-- error-prone encoder in FUASSM.
 		assert(a and b and not c, "MOV must be properly qualified: 'MOV P1,P2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -89,6 +113,9 @@ local encoders = {
 			end
 		end
 		
+		-- resolved symbols are litteral numbers, thus the literal and symbolic
+		-- forms are common to eachother, differing mostly in if they still require 
+		-- 'patching', or not.
 		if (af=='literal' or af=='symbol') and bf=='register' then
 			if aa == true and ba == true then
 				if bv == "A" then
@@ -109,6 +136,7 @@ local encoders = {
 			end
 		end
 		
+		-- as above.
 		if af == 'register' and (bf=='literal' or bf=='symbol') then
 			if aa == true and ba == false then -- mixed push/set form
 				if av == "A" then
@@ -124,6 +152,9 @@ local encoders = {
 		end
 	end;
 	LMOV = function(a, b, c, d)
+		-- the long-move instrution, used to move data too, from, or between
+		-- different segments. at the moment its only defined in pure-register
+		-- forms.
 		assert(a and b and c, "LMOV must be properly qualified: 'LMOV R1,R2,R3,R4' (thats seg, offset, destseg, destoffset)")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -137,6 +168,8 @@ local encoders = {
 		return string.char(0x24, reg_encode(av, bv), reg_encode(cv, dv))
 	end;
 	INC = function(a, b, c)
+		-- the monopramic increment-by-one instruction., aka ADD 1, R, R
+		-- at the moment its only defined for ACC.
 		assert(a and not (b or c), "INC must be properly qualified: 'INC ACC'")
 		local af, aa, av = parm(a)
 		assert(af == 'register' and aa and av=='ACC', "INC only supports absolute ACC as a destination")
@@ -144,6 +177,8 @@ local encoders = {
 		return string.char(0x01)
 	end;
 	DEC = function(a, b, c)
+		-- the monopramic decrement-by-one instruction., aka SUB 1, R, R
+		-- at the moment its only defined for ACC.
 		assert(a and not (b or c), "DEC must be properly qualified: 'DEC ACC'")
 		local af, aa, av = parm(a)
 		assert(af == 'register' and aa and av=='ACC', "DEC only supports absolute ACC as a destination")
@@ -151,6 +186,8 @@ local encoders = {
 		return string.char(0x1f)
 	end;
 	ADD = function(a, b, c)
+		-- Addtion instruction, performs basic addition
+		
 		assert(a and b and c, "ADD must be properly qualified: 'ADD R1,R2,ACC'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -174,6 +211,7 @@ local encoders = {
 		error("unhandled ADD form!")
 	end;
 	SUB = function(a, b, c)
+		-- Subtraction instruction, performs basic subtraction
 		assert(a and b and c, "SUB must be properly qualified: 'SUB R1,R2,ACC'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -198,6 +236,7 @@ local encoders = {
 		end
 	end;
 	DIV = function(a, b, c)
+		-- Integral, unsigned, division instruction.
 		assert(a and b and c, "DIV must be properly qualified: 'DIV R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -213,6 +252,7 @@ local encoders = {
 		end
 	end;
 	MUL = function(a, b, c)
+		-- Integral, unsigned, Multiplication instruction.
 		assert(a and b and c, "MUL must be properly qualified: 'MUL R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -228,6 +268,7 @@ local encoders = {
 		end
 	end;
 	MOD = function(a, b, c)
+		-- Integral, unsigned, Modulo (aka, remainder) instruction.
 		assert(a and b and c, "MOD must be properly qualified: 'MOD R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -243,6 +284,8 @@ local encoders = {
 		end
 	end;
 	SHW = function(a, b, c)
+		-- princibly a debugging instruction, show prints the name of a
+		-- given register, followed by its value (as an unsigned byte)
 		assert(a and not (b or c), "SHW must be properly qualified: 'SHW R'")
 		local af, aa, av = parm(a)
 		assert(af=='register' and aa, "SHW only presently works for absolute registers")
@@ -255,10 +298,13 @@ local encoders = {
 	
 	end;
 	HLT = function(a, b, c)
+		-- halt instruction, tells the machine to halt
 		assert(not (a or b or c), "HLT must be properly qualified: 'HLT'")
 		return string.char(0xff)
 	end;
 	SWP = function(a, b, c)
+		-- swap, exchanges the values of parameters. only defined
+		-- for registers
 		assert((a and b) and not c, "SWP must be properly qualified: 'SWP R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -273,6 +319,8 @@ local encoders = {
 		error("unhandled SWP form!")
 	end;
 	LES = function(a, b, c)
+		-- less-than instruction, compares two values and stores the result
+		-- in the third
 		assert(a and b and c, "LES must be properly qualified: 'LES R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -291,6 +339,8 @@ local encoders = {
 		error("unhandled LES form!")
 	end;
 	GTR = function(a, b, c)
+		-- greater-than instruction, compares two values and stores the
+		-- result in the third
 		assert(a and b and c, "GTR must be properly qualified: 'GTR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -308,6 +358,8 @@ local encoders = {
 		end
 	end;
 	EQL = function(a, b, c)
+		-- equal-to instruction, compares two values and stores the
+		-- result in the third
 		assert(a and b and c, "EQL must be properly qualified: 'EQL R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -325,6 +377,8 @@ local encoders = {
 		error("unhandled EQL form!")
 	end;
 	GTE = function(a, b, c)
+		-- greater-than-or-equal-to instruction, compares two values and
+		-- stores the result in the third
 		assert(a and b and c, "GTE must be properly qualified: 'GTE R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -341,6 +395,8 @@ local encoders = {
 		error("unhandled GRT form!")
 	end;
 	LTE = function(a, b, c)
+		-- less-than-or-equal-to instruction, compares two values and stores
+		-- the result in the third
 		assert(a and b and c, "LTE must be properly qualified: 'LTE R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -357,6 +413,7 @@ local encoders = {
 		error("unhandled LRT form!")
 	end;
 	JNZ = function(a, b, c)
+		-- Jump-if-not-zero, the conditional jump instruction.
 		assert(a and b and (not c), "JNZ must be properly qualified: 'JNZ RET,nn'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -372,6 +429,8 @@ local encoders = {
 		error("unhandled JNZ form!")
 	end;
 	JMP = function(a, b, c)
+		-- jump instruction, transfers control to the given in-segment
+		--  address
 		assert(a and not (b or c), "JMP must be properly qualified: 'JMP nn'")
 		local af, aa, av = parm(a)
 		assert(aa, "JMP only supports absolute jump targets at this time.")
@@ -381,11 +440,16 @@ local encoders = {
 		elseif af == 'symbol' then
 			return string.char(0x0b, 0x00), true
 		elseif af == 'register' then
+			-- this is actually the free-register LJMP opcode, mapping the 
+			-- first parm to SEG (the segment pointer) makes it effectively
+			-- a free-register short-jump
 			return string.char(0x25,  reg_encode('SEG', av))
 		end		
 		error("unhandled JMP form!")
 	end;
 	LJMP = function(a, b, c)
+		-- long-jump instruction. transfers control to a given address in a
+		-- (potentially) different segment.
 		assert(a and b and not c, "LJMP must be properly qualified: 'LJMP R1(seg), R2(offset)'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -397,6 +461,7 @@ local encoders = {
 		--error("unhandled LJMP form!")
 	end;
 	LET = function(a, b, c)
+		-- LET psudo-instruction, defines a sybol as the given value.
 		assert((a and b) and not c, "LET must be properly qualified: 'LET sym,nn'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -408,6 +473,8 @@ local encoders = {
 		return ""
 	end;
 	LBL = function(a, b, c)
+		-- Label psudo-instruction, sets the named symbols to the offset and 
+		-- segment of the current location.
 		assert(a and b, "LBL must be properly qualified: 'LBL adrsym,optsegsym")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -418,8 +485,14 @@ local encoders = {
 		if bv then symbols[bv] = math.floor(len/256) end
 		return ""
 	end;
-	-- this mess won't work properly when patching values...
 	BYTE = function(a, b, c)
+		-- BYTE psudo-instruction, defines the given symbols as the offset
+		-- and segment of the current location, and encodes the third parm as
+		-- a byte.
+		-- thus, it effectively creates a named data storage position in
+		--  memory.
+		--
+		-- this mess won't work properly when patching values...
 		assert(a and b and c, "BYTE must be properly qualified: 'BYTE symbol,symbolseg,initialiser")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -442,6 +515,9 @@ local encoders = {
 		end
 	end;
 	MNZ = function(a, b, c)
+		-- Move-not-zero: the conditional move instruction.
+		-- operates similarly to JNZ, only it performs a move operation
+		-- rather than a jump.
 		assert(a and b and c, "MNZ must be properly qualified: 'MNZ R1,R2,nn'")
 		local af, aa, av
 		local bf, ba, bv
@@ -470,6 +546,7 @@ local encoders = {
 	end;
 	
 	NOT = function(a, b, c)
+		-- one's compliment negation instruction
 		assert(a and b and (not c), "NOT must be properly qualified: 'NOT R1, R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(a)
@@ -479,6 +556,7 @@ local encoders = {
 		return string.char(0x10, reg_encode(av, bv))
 	end;
 	AND = function(a, b, c)
+		-- bitwise-AND instruction
 		assert(a and b and c, "AND must be properly qualified: 'AND R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -490,6 +568,7 @@ local encoders = {
 		return string.char(0x11, reg_encode(av, bv))
 	end;
 	OR = function(a, b, c)
+		-- bitwise-OR instruction
 		assert(a and b and c, "OR must be properly qualified: 'OR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -501,6 +580,7 @@ local encoders = {
 		return string.char(0x12, reg_encode(av, bv))
 	end;
 	XOR = function(a, b, c)
+		-- bitwise-XOR instruction
 		assert(a and b and c, "XOR must be properly qualified: 'XOR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -511,6 +591,9 @@ local encoders = {
 		return string.char(0x13, reg_encode(av, bv))
 	end;
 	SHL = function(a, b, c)
+		-- Shift left instruction. shifts the bitpattern of the given value a
+		-- number of positions given in the second parm, and stores the
+		-- result in the third
 		assert(a and b and c, "SHL must be properly qualified: 'SHL R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -522,6 +605,9 @@ local encoders = {
 		return string.char(0x14, reg_encode(av, bv))
 	end;
 	SHR = function(a, b, c)
+		-- Shift right instruction. shifts the bitpattern of the given value
+		-- a number of positions given in the second parm, and stores the 
+		-- result in the third
 		assert(a and b and c, "SHR must be properly qualified: 'SHR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -533,6 +619,8 @@ local encoders = {
 		return string.char(0x15, reg_encode(av, bv))
 	end;
 	SRE = function(a, b, c)
+		-- similar to SHR, save that it extends the sign-bit, thus
+		-- (generally) preserving the sign of numbers in two's compliment
 		assert(a and b and c, "SRE must be properly qualified: 'SRE R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -544,6 +632,9 @@ local encoders = {
 		return string.char(0x16, reg_encode(av, bv))
 	end;
 	ROL = function(a, b, c)
+		-- Roll Left instruction. Rolls are similar in effect to shifts,
+		-- however the bits that "fall off" the end are simply replaced at
+		-- the other end
 		assert(a and b and c, "ROL must be properly qualified: 'ROL R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -555,6 +646,9 @@ local encoders = {
 		return string.char(0x26, reg_encode(av, bv))
 	end;
 	ROR = function(a, b, c)
+		-- Roll Right instruction. Rolls are similar in effect to shifts,
+		-- however the bits that "fall off" the end are simply replaced at
+		-- the other end
 		assert(a and b and c, "ROR must be properly qualified: 'ROR R1,R2,RET'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -566,6 +660,9 @@ local encoders = {
 		return string.char(0x27, reg_encode(av, bv))
 	end;
 	IN = function(a, b, c)
+		-- Device port read instruction. attempts to read a single value
+		-- from the indicated device port, and places it in the location
+		-- indicated by the second parm.
 		assert(a and b and not c, "IN must be properly qualified: 'IN R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -575,6 +672,8 @@ local encoders = {
 		return string.char(0x17, reg_encode(av, bv))
 	end;
 	OUT = function(a, b, c)
+		-- Device port write instruction. attempts send a given byte of data
+		-- to the indicated device port,
 		assert(a and b and not c, "OUT must be properly qualified: 'OUT R1,R2'")
 		local af, aa, av = parm(a)
 		local bf, ba, bv = parm(b)
@@ -625,12 +724,14 @@ end
 --  string, suitable for saving or loading into a machine.
 function _M.parse(t, verbose)
 	assert(t, "Parse has been given nothing")
+	-- if its raw-text, then scrub it and continue.
 	if type(t) == 'string' then t = _M.scrub(t) end
 	local tos = tostring
 	local chk,p = {}, {}
 	
 	symbols = {}
 	
+	-- phase I
 	--  parse statements into operands and parms
 	local op, a, b, c, d
 	local match = "([&%[]?[%%$*]?[%w_']*[%]]?)[,%s]*(.*)"
@@ -651,7 +752,17 @@ function _M.parse(t, verbose)
 		chk[i]={op=op, a=a, b=b, c=c, d=d}
 	end
 	
+	--phase II
 	-- encode into binary representations
+	-- we take the prepared statements from the last phase, the first part
+	-- should be the operator, for which we have a whole bunch of
+	-- specialised encoder functions written. each encoder function takes
+	-- the raw parms and attempts to parse and resolve them. if successful
+	-- it will then attempt to reduce it to a specific binary representation.
+	-- this can succeed, returning the encoded string, fail, producing false
+	-- and an error message, or partially succeed, producing a partially 
+	-- encoded chunk, and the value true (indicating that that chunk should
+	-- be re-processed in the patching phase).
 	local bin = {}
 	local op, a, b, c, d, suc, r
 	len = 0
@@ -685,7 +796,12 @@ function _M.parse(t, verbose)
 		end
 	end
 	
+	--phase III
 	-- now (re)do patch points
+	-- during initial encoding some chunks were (possibly) markede for
+	-- patching. this means there wasn't enough info at the time to give a
+	-- proper encoding, so now we give them one last chance to resolve.
+	-- which is usually enough for properly written code.
 	local i
 	for j=1,#p do
 		i = p[j]
@@ -703,6 +819,7 @@ function _M.parse(t, verbose)
 		
 	end
 	
+	-- finally...
 	-- concatinate the encoded fragments into a single chunk, and return it.
 	return table.concat(bin)
 end
