@@ -30,8 +30,8 @@ local function parsenum(n)
 	elseif n:sub(1,1) == "%" then -- binary
 		return tonumber(n:sub(2), 2)
 	elseif n:sub(1,1) == "0" then  -- Octal
-		return tonumber(n:sub(2), 8)
-	elseif n:match("'(.)'") then  -- char-literal
+		return tonumber(n, 8)
+	elseif n:match("'(%\?.)'") then  -- char-literal
 		return string.byte(n:match("'(.)'"))
 	else  -- doesn't seem to be anything special, decimal?
 		return tonumber(n, 10) 
@@ -905,13 +905,14 @@ function _M.parse(t, verbose)
 			end
 
 			if patch then p[#p+1] = i end
+			
+			bin[i] = r or ""
 
 			len = len + #r
 		end
 		chk[i].len = len -- HAAAAACK
 
-		bin[i] = r or ""
-		assert(bin[i], "Nil value in bin table detected")
+		if bin[i] == nil then bin[i] = "" end
 	end
 	
 	--phase III
@@ -925,7 +926,7 @@ function _M.parse(t, verbose)
 		i = p[j]
 		op, a, b, c, d, len = chk[i].op,chk[i].a,chk[i].b,chk[i].c,chk[i].d,chk[i].len
 		if verbose then print(string.format("Patching %s %s, %s", tos(op), tos(a), tos(b))) end
-		len = chk[j].len -- HAAAAACK
+		len = chk[i].len -- HAAAAACK
 		r, patch = encoders[op](a, b, c)
 		if r and not patch then
 			bin[i] = r
