@@ -29,12 +29,12 @@ local function parsenum(n)
 		return tonumber(n:sub(1, -2), 16)
 	elseif n:sub(1,1) == "%" then -- binary
 		return tonumber(n:sub(2), 2)
-	elseif n:sub(1,1) == "O" then  -- Octal
+	elseif n:sub(1,1) == "0" then  -- Octal
 		return tonumber(n:sub(2), 8)
 	elseif n:match("'(.)'") then  -- char-literal
 		return string.byte(n:match("'(.)'"))
 	else  -- doesn't seem to be anything special, decimal?
-		return tonumber(n) 
+		return tonumber(n, 10) 
 	end
 end
 
