@@ -207,13 +207,14 @@ test:newsubsection("Opcodes")
 	test("MOV - A clearing house forms",
 		[=[
 		local m = machine:new(1)
-		testp = asm.parse[[
+		local testp, err = asm.parse[[
 		MOV $42, A
 		MOV A, &$42
 		MOV &$42,A
 		MOV A, &$42
 		HLT
 		]]
+		assert(testp, err)
 		m:load(testp)
 		m:cycle(10)
 		return m.memory[0x42] == 0x42
@@ -221,13 +222,14 @@ test:newsubsection("Opcodes")
 	test("MOV - B clearing house forms",
 		[=[
 		local m = machine:new(1)
-		testp = asm.parse[[
+		local testp, err = asm.parse[[
 		MOV $42, B
 		MOV B, &$42
 		MOV &$42,B
 		MOV B, &$42
 		HLT
 		]]
+		assert(testp, err)
 		m:load(testp)
 		m:cycle(10)
 		return m.memory[0x42] == 0x42
@@ -235,7 +237,7 @@ test:newsubsection("Opcodes")
 	test("MNZ, conditional set",
 		[=[
 		local m = machine:new(1)
-		testp = asm.parse[[
+		local testp, err = asm.parse[[
 		MOV $01,A
 		MOV $01,B
 		EQL A, B, RET
@@ -245,6 +247,7 @@ test:newsubsection("Opcodes")
 		MNZ RET, A, $42
 		HLT
 		]]
+		assert(testp, err)
 		m:load(testp)
 		m:cycle(10)
 		return (m.memory[0x2a] == 1) and m.memory[0x42] ~= 1
@@ -252,7 +255,7 @@ test:newsubsection("Opcodes")
 	test("INC and DEC, increment and decrement",
 		[=[
 		local m = machine:new(1)
-		testp = asm.parse[[
+		local testp, err = asm.parse[[
 		MOV $00,A
 		MOV A, ACC
 		INC ACC
@@ -264,6 +267,7 @@ test:newsubsection("Opcodes")
 		MOV A, &42
 		HLT
 		]]
+		assert(testp, err)
 		m:load(testp)
 		m:cycle(10)
 		return m.memory[42] == 1
