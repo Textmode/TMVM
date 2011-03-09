@@ -63,7 +63,6 @@ local function parm(p)
 			if value then 
 				return form, abs, value
 			else
-				--assert(value, string.format("Okay, I give up. whats '%s'?", tostring(p)))
 				form = 'symbol'
 				value = p
 			end
@@ -91,7 +90,8 @@ end
 local encoders = {
 	NOP = function(a, b, c)
 		-- NOP is the do-nothing instruction. it has only one form.
-		assert(not (a or b or c), "NOP must be properly qualified: 'NOP'")
+		if not (a or b or c) then
+			return false, "NOP must be properly qualified: 'NOP'" end
 		return string.char(0x00)	
 	end;
 	MOV = function(a, b, c)
@@ -568,7 +568,10 @@ local encoders = {
 		if not (aa and ba) then
 			return false, "Values may only be stored in build-time symbols" end
 		if not (af=='symbol' and bf=='symbol') then
-			return false, "Values may only be stored in valid, unused, symbols" end
+			-- HAAAAACK!
+			if not (av == (len%256) and bv == math.floor(len/256)) then
+				return false, "Values may only be stored in valid, unused, symbols" end
+			end
 		if not (cf =='literal' or cf == 'symbol') then
 			return false, "Only build-time values may be used as an initialiser" end
 		
@@ -875,6 +878,7 @@ function _M.parse(t, verbose)
 	len = 0
 	for i=1,#chk do
 		op, a, b, c, d = chk[i].op,chk[i].a,chk[i].b,chk[i].c, chk[i].d
+		
 		if op then
 			local lne = string.format("line %d: %s %s,%s,%s", i, tos(op), tos(a), tos(b), tos(c), tos(d))
 			if not encoders[op] then
@@ -885,7 +889,9 @@ function _M.parse(t, verbose)
 
 			if verbose then print(string.format("%04x: %s %s, %s, %s",
 				len, tos(op), tos(a), tos(b), tos(c))) end
+
 			suc, r, patch = pcall(encoders[op], a, b, c, d)
+
 			if suc then
 				if not r then return false,	
 					string.format("[line %d: %s %s,%s,%s # No valid reduction.]",
@@ -898,11 +904,14 @@ function _M.parse(t, verbose)
 				return false, msg
 			end
 
-			bin[i] = r or ""
-			len = len + #r
-			--print("YEHAW!", patch)
 			if patch then p[#p+1] = i end
+
+			len = len + #r
 		end
+		chk[i].len = len -- HAAAAACK
+
+		bin[i] = r or ""
+		assert(bin[i], "Nil value in bin table detected")
 	end
 	
 	--phase III
@@ -914,17 +923,16 @@ function _M.parse(t, verbose)
 	local i
 	for j=1,#p do
 		i = p[j]
-		op, a, b, c = chk[i].op,chk[i].a,chk[i].b,chk[i].c
+		op, a, b, c, d, len = chk[i].op,chk[i].a,chk[i].b,chk[i].c,chk[i].d,chk[i].len
 		if verbose then print(string.format("Patching %s %s, %s", tos(op), tos(a), tos(b))) end
+		len = chk[j].len -- HAAAAACK
 		r, patch = encoders[op](a, b, c)
-		if r then
+		if r and not patch then
 			bin[i] = r
 			len = len + #r
 		else
-			bin[i]=""
+			return false, ("[line %d: %s %s,%s # Failed to patch symbol.]"):format(i, op, tos(a), tos(b))
 		end
-		
-		assert(not patch, ("[line %d: %s %s,%s # Failed to patch symbol.]"):format(i, op, tos(a), tos(b)))
 		
 	end
 	
