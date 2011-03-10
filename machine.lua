@@ -41,11 +41,22 @@ local signals = {
 local CF = 1  -- carry flag
 local SF = 2  -- sign (negative) flag
 local OF = 3  -- overflow/underflow flag
---local ZF = 4  -- zero flag
---local PF = 5  -- parity flag
+local ZF = 4  -- zero flag
+local PF = 5  -- parity flag
 --local U1 = 6  -- unused
 --local U2 = 7  -- unused
 --local U3 = 8  -- unused
+
+local parity = {
+	[0x0] = 1;	[0x1] = 0;  --	0000	0001
+	[0x2] = 0;	[0x3] = 1;  --	0010	0011
+	[0x4] = 0;	[0x5] = 1;  --	0100	0101
+	[0x6] = 1;	[0x7] = 0;  --	0110	0111
+	[0x8] = 0;	[0x9] = 1;  --	1000	1001
+	[0xa] = 1;	[0xb] = 0;  --	1010	1011
+	[0xc] = 1;	[0xd] = 0;  --	1100	1101
+	[0xe] = 0;	[0xf] = 1;  --	1110	1111
+}
 
 
 -------------------------------------------------------------------------
@@ -136,6 +147,47 @@ local function getflag(self, flag, bool)
 	return bitfield.GET(self.FLG, flag)
 end
 
+local	function doflags(self, value)
+
+	if value == 0 then
+		setflag(self, CF, false)
+		setflag(self, SF, false)
+		setflag(self, OF, false)
+		setflag(self, ZF, true)
+		setflag(self, PF, true)
+	else 
+		setflag(self, ZF, false)
+	end
+		
+
+	if value ~= (value % 256) then
+		setflag(self, OF, true)
+		setflag(self, CF, true)
+	else
+		setflag(self, OF, false)
+		setflag(self, CF, false)
+	end
+
+	if value < 0x00 then
+		setflag(self, SF, true)
+		setflag(self, CF, true)
+	else
+		setflag(self, SF, false)
+		setflag(self, CF, true)
+	end
+
+	do  -- Parity bit assignment
+		local a = math.floor(value % 16)
+		local b = math.floor(value / 16)
+		a = parity[a]
+		b = parity[b]
+		
+		setflag(self, PF, (a or b) and not (a and b)) -- XOR, for those of you following along at home
+	end
+	
+	return value
+end
+
 -- does nothing.
 local function nop() end
 
@@ -153,11 +205,8 @@ _M.iset = {
 	--  Fixed register Increment
 	[0x01]=function(self)
 		local r = (self.ACC+1)
-		if r > 0xff then
-			setflag(self, OF, true)
-			setflag(self, CF, true)
-		end
-		self.ACC = r % 256
+		
+		self.ACC = doflags(self, r) % 256
 		return 1
 	end;
 	-- MOV &R:&R 
@@ -193,12 +242,7 @@ _M.iset = {
 		local a, b = convreg(self, adrget(self, self.IP+1))
 		local r = (self[a] + self[b])
 		
-		if r > 0xff then
-			setflag(self, CF, true)
-			setflag(self, OF, true)
-		end
-		
-		self.ACC = r % 256
+		self.ACC = doflags(self, r) % 256
 		return 2;
 	end;
 	-- SWP R:R 
@@ -221,12 +265,7 @@ _M.iset = {
 	[0x09]=function(self) 
 		local r = (self.A + self.B)
 		
-		if r > 0xff then
-			setflag(self, CF, true) 
-			setflag(self, OF, true) 
-		end
-		
-		self.ACC = r % 256
+		self.ACC = doflags(self, r) % 256
 		return 1;
 	end;	
 	-- SHW .A
@@ -362,11 +401,7 @@ _M.iset = {
 			
 		local r = round(self[a] * self[b])
 		
-		if r > 0xff then
-			setflag(self, OF, true)
-		end
-		
-		self.RET = r % 256
+		self.RET = doflags(self, r) % 256
 		return 2;
 	end;
 	-- SUB R1:.R2 -> .ACC
@@ -376,26 +411,24 @@ _M.iset = {
 
 		local r = (self[a] - self[b])
 		
-		if r < 0x00 then
-			setflag(self, CF, true)
-			setflag(self, OF, true)
-			setflag(self, SF, true)
-		end
-		self.ACC = r % 256
+		self.ACC = doflags(self, r) % 256
 		return 2;
 	end;	
 	-- MOD R, R -> RET
 	--  Free-register Modulo
 	[0x1b]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = round((self[a] % self[b]) % 256)
+		local r =round(self[a] % self[b])
+		self.RET = doflags(self, r) % 256
 		return 2;
 	end;
 	-- MOD R, R -> ACC
 	--  Free-register Modulo
 	[0x1c]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.ACC = round((self[a] % self[b]) % 256)
+		local r = round(self[a] % self[b])
+		
+		self.ACC = doflags(self, r) % 256
 		return 2;
 	end;
 	-- DIV R, R -> ACC
@@ -403,7 +436,8 @@ _M.iset = {
 	[0x1d]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
 		if self.b == 0 then self:signal(SIG_DIV0) end
-		self.ACC = round((self[a] / self[b]) % 256)
+		local r = round(self[a] / self[b])
+		self.ACC = doflags(self, r) % 256
 		return 2;
 	end;
 	-- MUL R, R -> ACC
@@ -415,11 +449,7 @@ _M.iset = {
 		
 		local r = round(self[a] * self[b])
 		
-		if r > 0xff then
-			setflag(self, OF, true)
-		end
-		
-		self.ACC = r % 256
+		self.ACC = doflags(self, r) % 256
 		return 2;
 	end;
 	-- DEC ACC
@@ -427,12 +457,7 @@ _M.iset = {
 	[0x1f]=function(self)
 		local r = (self.ACC-1)
 		
-		if r < 0x00 then
-			setflag(self, CF, true)
-			setflag(self, OF, true)
-			setflag(self, SF, true)
-		end
-		self.ACC = r % 256
+		self.ACC = doflags(self, r) % 256
 		return 1
 	end;
 
@@ -443,12 +468,7 @@ _M.iset = {
 		local a, b = convreg(self, adrget(self, self.IP+1))
 		local r = (self[a] - self[b])
 		
-		if r < 0x00 then
-			setflag(self, CF, true)
-			setflag(self, OF, true)
-			setflag(self, SF, true)
-		end
-		self.RET = r % 256
+		self.RET = doflags(self, r) % 256
 		return 2;
 	end;
 	-- MOV nn, B
@@ -519,7 +539,8 @@ _M.iset = {
 	[0xa2]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
 		if self.b == 0 then self:signal(SIG_DIV0) end
-		self.RET = round((self[a] / self[b]) % 256)
+		local r = round(self[a] / self[b])
+		self.RET = doflags(self, r) % 256
 		return 2;
 	end;
 	-- GTR .A:.B -> .RET 
@@ -534,11 +555,7 @@ _M.iset = {
 		local a, b = convreg(self, adrget(self, self.IP+1))
 		local r = (self[a] + self[b])
 		
-		if r > 0xff then
-			setflag(self, CF, true)
-			setflag(self, OF, true)
-		end
-		self.RET = r % 256
+		self.RET = doflags(self, r) % 256
 		return 2;
 	end;
 	-- SUB .A:.B -> .RET
@@ -546,12 +563,7 @@ _M.iset = {
 	[0xa5]=function(self) 
 		local r = (self.A - self.B)
 		
-		if r < 0x00 then
-			setflag(self, CF, true)
-			setflag(self, OF, true)
-			setflag(self, SF, true)
-		end
-		self.RET = r % 256
+		self.RET = doflags(self, r) % 256
 		return 1;
 	end;	
 	-- ADD .A:.B -> .RET
@@ -559,12 +571,7 @@ _M.iset = {
 	[0xa6]=function(self) 
 		local r = (self.A + self.B)
 		
-		if r > 0xff then
-			setflag(self, CF, true)
-			setflag(self, OF, true)
-			setflag(self, SF, true)
-		end
-		self.RET = r % 256
+		self.RET = doflags(self, r) % 256
 		return 1;
 	end;	
 	-- SUB .A:.B -> .ACC
@@ -572,12 +579,7 @@ _M.iset = {
 	[0xa7]=function(self) 
 		local r = (self.A - self.B)
 		
-		if r < 0x00 then
-			setflag(self, CF, true)
-			setflag(self, OF, true)
-			setflag(self, SF, true)
-		end
-		self.ACC = r % 256
+		self.ACC = doflags(self, r) % 256
 		return 1;
 	end;	
 
