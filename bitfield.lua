@@ -51,7 +51,8 @@ _MT.__index = _M.GET --(self, idx)
 -- Sets the nth bit of bf to the truth value of v
 -- 
 -- Returns: (nothing)
-function _M.SET(self, n, v)
+function _M.SET(b, n, v)
+	if not isbf(b) then b = bitfield(b) end
 	assert(n > 0, "Cannot set imaginary bits.")
 	n = bin(n)
 
@@ -62,14 +63,16 @@ function _M.SET(self, n, v)
 	
 	
 	if v then
-		if self.value % (2*n) < n then
-			self.value = self.value + n
+		if b.value % (2*n) < n then
+			b.value = self.value + n
 		end
 	else -- false/clear
-		if self.value % (2*n) >= n then
-			self.value = self.value - n
+		if b.value % (2*n) >= n then
+			b.value = self.value - n
 		end
 	end
+	
+	return b.value
 end
 
 _MT.__newindex = _M.SET --(self, idx, val)
