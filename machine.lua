@@ -35,7 +35,18 @@ local signals = {
 	[SIG_DOUBLE_FAULT]        = "Double Fault";
 	[SIG_TRIPLE_FAULT]        = "Triple Fault (halting fault)";
 	}
-	
+
+-------------------------------------------------------------------------
+-- FLAGS
+local CF = 1  -- carry flag
+local SF = 2  -- sign (negative) flag
+local OF = 3  -- overflow/underflow flag
+--local ZF = 4  -- zero flag
+--local PF = 5  -- parity flag
+--local U1 = 6  -- unused
+--local U2 = 7  -- unused
+--local U3 = 8  -- unused
+
 
 -------------------------------------------------------------------------
 -- MISC
@@ -116,6 +127,15 @@ local function adrset(m, adr, value, seg)
 	m.memory[adr+(seg*256)] = value
 end
 
+local function setflag(self, flag, bool)
+	self.FLG = bitfield.SET(self.FLG, flag, bool)
+	return self.FLG
+end
+
+local function getflag(self, flag, bool)
+	return bitfield.GET(self.FLG, flag)
+end
+
 -- does nothing.
 local function nop() end
 
@@ -132,7 +152,12 @@ _M.iset = {
 	-- INC ACC
 	--  Fixed register Increment
 	[0x01]=function(self)
-		self.ACC = (self.ACC+1) % 256
+		local r = (self.ACC+1)
+		if r > 0xff then
+			setflag(self, OF, true)
+			setflag(self, CF, true)
+		end
+		self.ACC = r % 256
 		return 1
 	end;
 	-- MOV &R:&R 
@@ -166,7 +191,14 @@ _M.iset = {
 	--  free-register ADDition, results in ACC
 	[0x06]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.ACC = (self[a] + self[b]) % 256
+		local r = (self[a] + self[b])
+		
+		if r > 0xff then
+			setflag(self, CF, true)
+			setflag(self, OF, true)
+		end
+		
+		self.ACC = r % 256
 		return 2;
 	end;
 	-- SWP R:R 
@@ -187,7 +219,14 @@ _M.iset = {
 	-- ADD .A:.B -> .ACC
 	--  fixed-register AB ADDition, results in ACC
 	[0x09]=function(self) 
-		self.ACC = (self.A + self.B) % 256
+		local r = (self.A + self.B)
+		
+		if r > 0xff then
+			setflag(self, CF, true) 
+			setflag(self, OF, true) 
+		end
+		
+		self.ACC = r % 256
 		return 1;
 	end;	
 	-- SHW .A
@@ -320,14 +359,29 @@ _M.iset = {
 		local a, b = convreg(self, adrget(self, self.IP+1))
 		if a == 'PRM' or b == 'PRM' then
 			self:signal(SIG_ILLEGAL_INSTRUCTION) end
-		self.RET = round((self[a] * self[b]) % 256)
+			
+		local r = round(self[a] * self[b])
+		
+		if r > 0xff then
+			setflag(self, OF, true)
+		end
+		
+		self.RET = r % 256
 		return 2;
 	end;
 	-- SUB R1:.R2 -> .ACC
 	--  free-register ADDition, results in ACC
 	[0x1a]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.ACC = (self[a] - self[b]) % 256
+
+		local r = (self[a] - self[b])
+		
+		if r < 0x00 then
+			setflag(self, CF, true)
+			setflag(self, OF, true)
+			setflag(self, SF, true)
+		end
+		self.ACC = r % 256
 		return 2;
 	end;	
 	-- MOD R, R -> RET
@@ -358,13 +412,27 @@ _M.iset = {
 		local a, b = convreg(self, adrget(self, self.IP+1))
 		if a == 'PRM' or b == 'PRM' then
 			self:signal(SIG_ILLEGAL_INSTRUCTION) end
-		self.ACC = round((self[a] * self[b]) % 256)
+		
+		local r = round(self[a] * self[b])
+		
+		if r > 0xff then
+			setflag(self, OF, true)
+		end
+		
+		self.ACC = r % 256
 		return 2;
 	end;
 	-- DEC ACC
 	--  Fixed register Decrement
 	[0x1f]=function(self)
-		self.ACC = (self.ACC-1) % 256
+		local r = (self.ACC-1)
+		
+		if r < 0x00 then
+			setflag(self, CF, true)
+			setflag(self, OF, true)
+			setflag(self, SF, true)
+		end
+		self.ACC = r % 256
 		return 1
 	end;
 
@@ -373,7 +441,14 @@ _M.iset = {
 	--  Free-register SUBtraction, results in RET
 	[0x20]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = (self[a] - self[b]) % 256
+		local r = (self[a] - self[b])
+		
+		if r < 0x00 then
+			setflag(self, CF, true)
+			setflag(self, OF, true)
+			setflag(self, SF, true)
+		end
+		self.RET = r % 256
 		return 2;
 	end;
 	-- MOV nn, B
@@ -457,25 +532,52 @@ _M.iset = {
 	--  free-register ADDition, results in ACC
 	[0xa4]=function(self) 
 		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = (self[a] + self[b]) % 256
+		local r = (self[a] + self[b])
+		
+		if r > 0xff then
+			setflag(self, CF, true)
+			setflag(self, OF, true)
+		end
+		self.RET = r % 256
 		return 2;
 	end;
 	-- SUB .A:.B -> .RET
 	--  fixed-register AB SUBtraction, results in RET
 	[0xa5]=function(self) 
-		self.RET = (self.A - self.B) % 256
+		local r = (self.A - self.B)
+		
+		if r < 0x00 then
+			setflag(self, CF, true)
+			setflag(self, OF, true)
+			setflag(self, SF, true)
+		end
+		self.RET = r % 256
 		return 1;
 	end;	
 	-- ADD .A:.B -> .RET
 	--  fixed-register AB ADDition, results in RET
 	[0xa6]=function(self) 
-		self.RET = (self.A + self.B) % 256
+		local r = (self.A + self.B)
+		
+		if r > 0xff then
+			setflag(self, CF, true)
+			setflag(self, OF, true)
+			setflag(self, SF, true)
+		end
+		self.RET = r % 256
 		return 1;
 	end;	
 	-- SUB .A:.B -> .ACC
 	--  fixed-register AB SUBtraction, results in ACC
 	[0xa7]=function(self) 
-		self.ACC = (self.A - self.B) % 256
+		local r = (self.A - self.B)
+		
+		if r < 0x00 then
+			setflag(self, CF, true)
+			setflag(self, OF, true)
+			setflag(self, SF, true)
+		end
+		self.ACC = r % 256
 		return 1;
 	end;	
 
@@ -532,14 +634,16 @@ function _M:new(name)
 	name = name or ("%s %02x"):format(device:generatename(device.DEV_TYPE_MACHINE),_M.number)
 	local m = {name=name, time = 0, speed=_M.speed, memory={}, devices={}, portmap={};
 		IP=0,			-- Instruction Pointer
-		SIG=0,		-- SIGnal register
 		SEG=0,		-- SEGment Pointer
+		SIG=0,		-- SIGnal register
+		FLG=0,      -- Flags register
 		A=0,			-- Register A
 		B=0,			-- Register B
 		C=0,			-- Register A
 		D=0,			-- Register B
 		ACC=0,		-- ACCumulator
 		RET=0			-- RETurn, or result
+		
 		}
 	setmetatable(m, _MT)
 	
@@ -738,7 +842,7 @@ if arg and arg[0] and (arg[0]=='machine.lua' or arg[0]=='machine') then
 			tmp:load(tmpfile:read('*a'))
 			tmpfile:close()
 		else
-			print(string.format("couldn't open 'machine-%02d.init': %s", i, tostring(err)))
+			printf("couldn't open 'machine-%02d.init': %s", i, tostring(err))
 		end
 
 		machs[i] = tmp
