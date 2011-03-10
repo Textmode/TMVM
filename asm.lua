@@ -5,8 +5,8 @@ local _MT = {__index=_M}
 local symbols, len -- needed for parsing
 
 local regnum = {PRM=0x0, A  =0x1, B=0x2, C=0x3, D=0x4, ACC=0x5, RET=0x6,
-                SIG=0xd, SEG=0xe, IP =0xf}
-local regs = {'A', 'B', 'C', 'D', 'ACC', 'RET', 'SIG', 'SEG', 'IP'} 
+                FLG=0xc, SIG=0xd, SEG=0xe, IP =0xf}
+local regs = {'A', 'B', 'C', 'D', 'ACC', 'RET', 'FLG', 'SIG', 'SEG', 'IP'} 
 
 -- takes two strings indicating registers, and encodes them into a
 -- single free-register byte (taken by some opcodes)
