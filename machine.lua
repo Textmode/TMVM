@@ -9,10 +9,11 @@ local _MT = {__index=_M}
 
 -------------------------------------------------------------------------
 -- KEY VALUES
-local maxmem      = 256
-local maxport     = 256
-local maxsegments = 256
+local maxmem      = 256 -- maximum bytes in a memory segment
+local maxport     = 256 -- maximum number of device ports
+local maxsegments = 256 -- maximum number of memory segments
 
+-- speeds in cycles-per-second (hertz)
 local HERTZ = 1
 local KILOHERTZ = 1000*HERTZ
 local MEGAHERTZ = 1000*KILOHERTZ
@@ -27,6 +28,7 @@ local SIG_DEVICE_NOT_READY     = 0x03 -- attempt to use a device or port that is
 local SIG_DOUBLE_FAULT         = 0x0f -- Double-fault (eg, fault before clearing a fault)
 local SIG_TRIPLE_FAULT         = 0xff -- Triple (halting) fault.
 
+-- signal number -> freindly name mappings
 local signals = {
 	[SIG_NONE]                = "Signal Normal";
 	[SIG_DIV0]                = "Divide by zero";
@@ -47,26 +49,28 @@ local PF = 5  -- parity flag
 --local U2 = 7  -- unused
 --local U3 = 8  -- unused
 
+-- nybble parity (odd) mappings
 local parity = {
-	[0x0] = 1;	[0x1] = 0;  --	0000	0001
-	[0x2] = 0;	[0x3] = 1;  --	0010	0011
-	[0x4] = 0;	[0x5] = 1;  --	0100	0101
-	[0x6] = 1;	[0x7] = 0;  --	0110	0111
-	[0x8] = 0;	[0x9] = 1;  --	1000	1001
-	[0xa] = 1;	[0xb] = 0;  --	1010	1011
-	[0xc] = 1;	[0xd] = 0;  --	1100	1101
-	[0xe] = 0;	[0xf] = 1;  --	1110	1111
+	[0x0] = true;	[0x1] = false;  --	0000	0001
+	[0x2] = false;	[0x3] = true;   --	0010	0011
+	[0x4] = false;	[0x5] = true;   --	0100	0101
+	[0x6] = true;	[0x7] = false;  --	0110	0111
+	[0x8] = false;	[0x9] = true;   --	1000	1001
+	[0xa] = true;	[0xb] = false;  --	1010	1011
+	[0xc] = true;	[0xd] = false;  --	1100	1101
+	[0xe] = false;	[0xf] = true;   --	1110	1111
 }
-
 
 -------------------------------------------------------------------------
 -- MISC
+-- number to register mappings
 local cr_tbl = {[0x0]='PRM', [0x1]='A',   [0x2]='B',   [0x3]='C',   [0x4]='D',
                 [0x5]='ACC', [0x6]='RET', [0xc]='FLG',[0xd]='SIG', [0xe]='SEG', [0xf]='IP' }
 
 
 -------------------------------------------------------------------------
 -- private helper functions
+
 -- printf, as per C
 local function printf(...)
 	print(string.format(...))
@@ -77,6 +81,7 @@ local function writef(...)
 	io.write(string.format(...))
 end
 
+-- non-erroring assert-like function.
 local function alert(c, m)
 	if not c then print(m) end
 end
@@ -101,7 +106,7 @@ local function round(n)
 	else return math.ceil(n) end
 end
 
--- converts a string of bytes into the standard bytetables used elsewhere
+-- converts a string of bytes into the standard byte-tables used elsewhere
 local function stringtodata(str)
 	local t = {}
 	for i=1,#str do
@@ -120,60 +125,67 @@ local function wait(n)
 	return dt
 end
 
+-- converts an seg-offset pair into a linear address.
 local function adrshift(m, adr, seg)
 	assert(m and adr, "adrshift requires a segment (or machine), and an address")
 	seg = (type(m)=='number' and m) or (seg or m.SEG)
 	return adr+(seg*256)
 end
 
+-- returns the value stored in a given segment and offset
 local function adrget(m, adr, seg)
 	assert(m and adr, "adrget requires a segment (or machine), and an address")
 	seg = seg or m.SEG
 	return m.memory[adr+(seg*256)]
 end
 
+-- stores a value at a given segment and offset.
 local function adrset(m, adr, value, seg)
 	assert(m and adr, "adrset requires a segment (or machine), and an address")
 	seg = seg or m.SEG
 	m.memory[adr+(seg*256)] = value
 end
 
+-- sets a given CPU flag bit.
 local function setflag(self, flag, bool)
 	self.FLG = bitfield.SET(self.FLG, flag, bool)
 	return self.FLG
 end
 
+-- Gets a given CPU flag bit.
 local function getflag(self, flag, bool)
 	return bitfield.GET(self.FLG, flag)
 end
 
+-- based on given unormalised value, sets and resets the flags likely
+-- to have been effected by the operations leading to that value.
 local	function doflags(self, value)
 
 	if value == 0 then
-		setflag(self, CF, false)
-		setflag(self, SF, false)
-		setflag(self, OF, false)
-		setflag(self, ZF, true)
-		setflag(self, PF, true)
+		setflag(self, CF, false) -- carry/barrow
+		setflag(self, SF, false) -- sign (negative)
+		setflag(self, OF, false) -- overflow
+		setflag(self, ZF, true)  -- zero
+		setflag(self, PF, true)  -- parity
 	else 
-		setflag(self, ZF, false)
+		setflag(self, ZF, false) -- zero
 	end
 		
 
 	if value ~= (value % 256) then
-		setflag(self, OF, true)
-		setflag(self, CF, true)
+		setflag(self, OF, true) -- overflow
+		setflag(self, CF, true) -- carry/barrow
 	else
-		setflag(self, OF, false)
-		setflag(self, CF, false)
+		setflag(self, OF, false) -- overflow
+		setflag(self, CF, false) -- carry/barrow
 	end
 
 	if value < 0x00 then
-		setflag(self, SF, true)
-		setflag(self, CF, true)
+		setflag(self, SF, true) -- sign (negative)
+		setflag(self, CF, true) -- carry/barrow
 	else
-		setflag(self, SF, false)
-		setflag(self, CF, true)
+		setflag(self, SF, false) -- sign (negative)
+		setflag(self, CF, true) -- carry/barrow
 	end
 
 	do  -- Parity bit assignment
@@ -604,26 +616,33 @@ _M.speed = 1*MEGAHERTZ -- set he default speed.
 --   if the current signal is nither NONE, nor DOUBLE_FAULT, signal DOUBLE_FAULT and LJMP 0,0 (aka, reset)
 --   if the current signal is DOUBLE_FAULT, signal a TRIPLE_FAULT, and halt the machine.
 function _M:signal(sig)
-	if sig == nil then return self.SIG, signals[self.SIG] end
+	-- if we weren't given any signal to set/trigger. then its a request
+	--  for the corrent signal state.
+	-- oblige by returning the current signal
+	if sig == nil then return self.SIG, signals[self.SIG] end 
 	
-	if sig == SIG_NONE then
+	if sig == SIG_NONE then -- if sig is none, clear all signals.
 		self.SIG = SIG_NONE
 		return self.SIG
-	elseif self.SIG == SIG_TRIPLE_FAULT then
+	elseif self.SIG == SIG_TRIPLE_FAULT then -- you can't go worse that 3fault
 		return self.SIG
 	end
 	
 	if self.SIG == SIG_DOUBLE_FAULT then
+	-- signals on 2fault is a 3fault
 		self.SIG = SIG_TRIPLE_FAULT
 		self.state = 'halt'
 	elseif self.SIG ~= SIG_NONE then
+	-- signals on an unresolved signal is a 2fault, which triggers a reset
 		self.SIG = SIG_DOUBLE_FAULT
 		self.IP = 0
 		self.SEG = 0
-	else	
+	else
+	-- otherwise nothign special, just set the sig register and move on
 		self.SIG = sig
 	end
 	
+	-- regardless, return the end result
 	return self.SIG
 end
 
@@ -632,8 +651,12 @@ end
 -- if no name is given, a default name is chosen
 function _M:new(name)
 
-	_M.number = _M.number+1
+	_M.number = _M.number+1 -- keep a count of the machines created
+	
+	-- create a nme if we weren't given one to use.
 	name = name or ("%s %02x"):format(device:generatename(device.DEV_TYPE_MACHINE),_M.number)
+	
+	-- raw table that makes up the machine. lots of feilds to make.
 	local m = {name=name, time = 0, speed=_M.speed, memory={}, devices={}, portmap={};
 		IP=0,			-- Instruction Pointer
 		SEG=0,		-- SEGment Pointer
@@ -647,25 +670,31 @@ function _M:new(name)
 		RET=0			-- RETurn, or result
 		
 		}
-	setmetatable(m, _MT)
+	setmetatable(m, _MT) -- give it wondrous fantabulous machine metatable!
 	
+	-- make memory non-nil, and possibly set some default values.
 	for i=0,(maxmem*maxsegments) do
 		m.memory[i] = 0--math.random(256)-1
 	end
 	
+	-- install the default load-out of devices
 	local t, err, d
+	-- null port...
 	d = device:new{type=device.DEV_TYPE_NONE}
 	t, err = m:deviceInstall(d)
 	assert(t, err)
-
+	
+	-- default terminal...
 	d = device:new{type=device.DEV_TYPE_TERMINAL}
 	t, err = m:deviceInstall(d)
 	assert(t, err)
-
+	
+	-- Real-time clock
 	d = device:new{type=device.DEV_TYPE_CLOCK}
 	t, err = m:deviceInstall(d)
 	assert(t, err)
-
+	
+	-- persistant store (eg. HDD or FDD)
 	d = device:new{type=device.DEV_TYPE_STORE}
 	t, err = m:deviceInstall(d)
 	assert(t, err)
@@ -678,6 +707,8 @@ end
 -- as one parm (data) it load the data into 0:0
 -- as two parms (start, data) it loads the data into the given address
 function _M:load(start, data)
+	-- starting offset is optional, but we have to shuffle things around
+	-- a bit if its not given.
 	if data == nil then data, start = start, 0 end
 	assert(type(data)=='table' or type(data)=='string', "Invalid loadable data parm")
 	
@@ -697,9 +728,12 @@ end
 function _M:deviceInstall(dev)
 	local idx, _ = #self.devices + 1
 	
+	-- try to find a valid portmapping
 	local p_map, err = dev:findports(self.portmap)
 	
-	if p_map then
+	-- register the ports, and additionally check that it really
+	--  is a valid mapping
+	if p_map then 
 		for i, p in pairs(p_map) do
 			if self.portmap[p] then
 				return false, "port conflict" end
@@ -709,6 +743,7 @@ function _M:deviceInstall(dev)
 		return false, err
 	end
 	
+	-- start the device and ready it for use.
 	local t, err = dev:start(self, idx)
 	if t then
 		self.devices[idx] = dev
@@ -767,19 +802,24 @@ function _M:cycle(n)
 			alert(false, ("Invalid instruction at address 0x%02x : %02x"):format(self.IP, ins))
 			self:signal(SIG_ILLEGAL_INSTRUCTION)
 		else
-			-- failure to update teh segment is not an oversight.
+			-- Note: failure to update the segment is not an oversight.
 			self.IP = self.iset[ins](self) + self.IP -- order is important here.
-			self.IP = self.IP % 256
-			self.time = self.time+1
+			self.IP = self.IP % 256 -- constrain IP to one byte values.
+			self.time = self.time+1 -- and keep a count of cycles
 		end
 		
-		if self.state == 'halt' then return 'halt' end
+		-- if the machine halts, then we're done. return.
+		if self.state == 'halt' then
+			return 'halt'
+		end
 	end
+	
+	-- return the current state, since the caller
+	-- probably wants to know anyway, this saves them a line.
 	return self.state
 end
 
 -----
--- BROKEN!
 -- causes the machine to run at its basic speed until halted
 -- if given a parm that evaluates as true, it will display a status-dump
 --   approximately every second.
@@ -814,6 +854,7 @@ function _M:dump()
 		self.IP, self.SEG, self.SIG, self.ACC, self.RET, self.A, self.B)
 	print()
 	
+	-- one 256 byte block as 16x16 hex-pairs.
 	for i=0,255, 16 do
 		for j=0,15 do
 		writef("%02x ", adrget(self, i+j))
@@ -827,8 +868,9 @@ end
 _MT.__call = _M.run
 
 
--- possibly clever shit
+-- possibly clever shit, to let us be both a valid module, and a valid program.
 if arg and arg[0] and (arg[0]=='machine.lua' or arg[0]=='machine') then
+
 	print("Begining...")
 	local machnum = 1
 	local machs = {}
