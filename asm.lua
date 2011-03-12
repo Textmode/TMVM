@@ -24,22 +24,16 @@ local function parsenum(n)
 	assert(type(n) == 'string', "Cannot parse non-text")
 
 	if n:sub(1,1) == "$" then  -- hexadecimal
-		print'hex-1'
 		return tonumber(n:sub(2), 16)
 	elseif n:sub(-1,-1) == 'h' then -- hexadecimal again
-		print'hex-2'
 		return tonumber(n:sub(1, -2), 16)
 	elseif n:sub(1,1) == "%" then -- binary
-		print'bin'
 		return tonumber(n:sub(2), 2)
 	elseif n:sub(1,1) == "0" then  -- Octal
-		print'oct'
 		return tonumber(n, 8)
 	elseif n:match("'(%\\?.)'") then  -- char-literal
-		print'literal'
 		return string.byte(n:match("'(.)'"))
 	else  -- doesn't seem to be anything special, decimal?
-		print'dec'
 		return tonumber(n, 10) 
 	end
 end
