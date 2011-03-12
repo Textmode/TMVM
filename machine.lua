@@ -1,6 +1,8 @@
 
 local bitfield = require "bitfield"
 local device = require "device"
+local util = require 'util'
+local socket = desire 'socket'
 
 local _M = {_NAME="machine", number=0}
 
@@ -116,13 +118,26 @@ local function stringtodata(str)
 	return t
 end
 
+local wait
 -- a coarse wait/"sleep" function.
 -- involves busy-waiting
-local function wait(n)
-	local clk = os.clock
-	local start, dt = clk()
-	repeat dt = clk()-start until dt >= n
-	return dt
+if not socket then -- if socket isn't availible, we fall back to a busy-wait.
+	function wait(n)
+		local clk = os.clock
+		local start, dt = clk()
+		repeat dt = clk()-start until dt >= n
+		return dt
+	end
+else -- but use sleep if we can.
+	function wait(n)
+		local clk = os.clock
+		local t = socket.sleep(n) -- ISSUE: seems like sleep does not return the time that passed...
+		if t then
+			return t
+		else
+			return os.clock()-clk
+		end
+	end
 end
 
 -- converts an seg-offset pair into a linear address.
@@ -831,7 +846,7 @@ end
 --   approximately every second.
 function _M:run(stats)
 	stats = stats or false
-	local t, nt, dt = os.clock()
+	local t, nt, dt = os.clock(), 0, 0
 	local drift = 0
 	
 	while self.state ~= 'halt' do
