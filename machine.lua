@@ -688,14 +688,19 @@ function _M:new(name)
 	d = device:new{type=device.DEV_TYPE_TERMINAL}
 	t, err = m:deviceInstall(d)
 	assert(t, err)
+
+	assert(device:load('store'), "could not load")
+	assert(device:load('clock'), "could not load")
 	
 	-- Real-time clock
 	d = device:new{type=device.DEV_TYPE_CLOCK}
 	t, err = m:deviceInstall(d)
 	assert(t, err)
 	
+	
 	-- persistant store (eg. HDD or FDD)
-	d = device:new{type=device.DEV_TYPE_STORE}
+	d, err = device:new{type=device.DEV_TYPE_STORE}
+	assert(d, err)
 	t, err = m:deviceInstall(d)
 	assert(t, err)
 	
@@ -726,6 +731,7 @@ end
 --
 -- Returns: dev-id
 function _M:deviceInstall(dev)
+	assert(dev, "Must be given a Device to install!")
 	local idx, _ = #self.devices + 1
 	
 	-- try to find a valid portmapping
@@ -740,7 +746,7 @@ function _M:deviceInstall(dev)
 			self.portmap[p]=dev:registerport(p, i)
 		end
 	else
-		return false, err
+		return false, err or "unknown install error"
 	end
 	
 	-- start the device and ready it for use.
@@ -748,7 +754,7 @@ function _M:deviceInstall(dev)
 	if t then
 		self.devices[idx] = dev
 	else
-		return false, "start error: "..tostring(err)
+		return false, tostring(err)
 	end
 	
 	return dev
