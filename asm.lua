@@ -2,11 +2,14 @@ local _M = {_NAME="asm", number=0}
 
 local _MT = {__index=_M}
 
+local opcodes = require "opcodes"
+local op = opcodes.map
+
 local symbols, len -- needed for parsing
 
-local regnum = {PRM=0x0, A  =0x1, B=0x2, C=0x3, D=0x4, ACC=0x5, RET=0x6,
-                FLG=0xc, SIG=0xd, SEG=0xe, IP =0xf}
-local regs = {'A', 'B', 'C', 'D', 'ACC', 'RET', 'FLG', 'SIG', 'SEG', 'IP'} 
+local regnum = {A=0x0, B  =0x1, C=0x2, D=0x3, ACC=0x4, RET=0x5,
+                SS=0xa, SP=0xb, FLG=0xc, SIG=0xd, SEG=0xe, IP =0xf}
+local regs = {'A', 'B', 'C', 'D', 'ACC', 'RET', 'SS', 'SP', 'FLG', 'SIG', 'SEG', 'IP'} 
 
 -- takes two strings indicating registers, and encodes them into a
 -- single free-register byte (taken by some opcodes)
@@ -50,24 +53,21 @@ local function parm(p)
 	
 	if p == 'null' then return 'symbol', abs, 'null' end -- null is always availible, and never set
 	
-	for i=1,#regs do
-		form = regs[i] == p and 'register' or form
+	for i=1,#regs do form = regs[i] == p and 'register' or form
 	end
 	
 	if form ~= 'register' then 
 		value = parsenum(p)
 		form = 'literal'
-		
+
 		if value == nil then
 			value = symbols[p]
-			if value then 
+			if value then
 				return form, abs, value
 			else
 				form = 'symbol'
 				value = p
 			end
-				
-			
 		end
 	end
 	
@@ -92,7 +92,7 @@ local encoders = {
 		-- NOP is the do-nothing instruction. it has only one form.
 		if not (a or b or c) then
 			return false, "NOP must be properly qualified: 'NOP'" end
-		return string.char(0x00)	
+		return string.char(op.NOP)	
 	end;
 	MOV = function(a, b, c)
 		-- MOV is the move data instruction.
@@ -108,9 +108,9 @@ local encoders = {
 		
 		if af == 'register' and bf == 'register' then -- free-register form
 			if aa == true and ba == true then -- pure register form
-				return string.char(0x0f, reg_encode(av, bv))
+				return string.char(op.MOV_1dR_2dR, reg_encode(av, bv))
 			elseif aa == false and ba == false then --pure addressed register form
-				return string.char(0x02, reg_encode(av, bv))
+				return string.char(op.MOV_1iR_2iR, reg_encode(av, bv))
 			end
 		end
 		
@@ -120,17 +120,17 @@ local encoders = {
 		if (af=='literal' or af=='symbol') and bf=='register' then
 			if aa == true and ba == true then
 				if bv == "A" then
-					return string.char(0x05, (af=='literal' and tonumber(av)) or 0), af=='symbol'
+					return string.char(op.MOV_1dN_2dA, (af=='literal' and tonumber(av)) or 0), af=='symbol'
 				elseif bv == "B" then
-					return string.char(0x21, (af=='literal' and tonumber(av)) or 0), af=='symbol'
+					return string.char(op.MOV_1dN_2dB, (af=='literal' and tonumber(av)) or 0), af=='symbol'
 				else
 					return false, "No encodings for mixed-mode moves not involving registers A or B"
 				end
 			elseif aa == false and ba == true then -- mixed get form
 				if bv == "A" then
-					return string.char(0x04, (af=='literal' and tonumber(av)) or 0), af=='symbol'
+					return string.char(op.MOV_1iN_2dA, (af=='literal' and tonumber(av)) or 0), af=='symbol'
 				elseif bv == "B" then
-					return string.char(0x22, (af=='literal' and tonumber(av)) or 0), af=='symbol'
+					return string.char(op.MOV_1iN_2dB, (af=='literal' and tonumber(av)) or 0), af=='symbol'
 				else
 					return false, "No encodings for mixed-mode moves not involving registers A or B"
 				end
@@ -141,9 +141,9 @@ local encoders = {
 		if af == 'register' and (bf=='literal' or bf=='symbol') then
 			if aa == true and ba == false then -- mixed push/set form
 				if av == "A" then
-					return string.char(0x03, (bf=='literal' and tonumber(bv)) or 0), bf=='symbol'
+					return string.char(op.MOV_1dA_2dN, (bf=='literal' and tonumber(bv)) or 0), bf=='symbol'
 				elseif av == "B" then
-					return string.char(0x23, (bf=='literal' and tonumber(bv)) or 0), bf=='symbol'
+					return string.char(op.MOV_1dB_2dN, (bf=='literal' and tonumber(bv)) or 0), bf=='symbol'
 				else
 					return false, "No encodings for mixed-mode moves not involving registers A or B"
 				end
@@ -168,7 +168,7 @@ local encoders = {
 		if not (aa and ba and ca and da) then
 			return false, "LMOV only works with absolute registers" end
 		
-		return string.char(0x24, reg_encode(av, bv), reg_encode(cv, dv))
+		return string.char(op.LMOV_1dR_2dR_3dR_4dR, reg_encode(av, bv), reg_encode(cv, dv))
 	end;
 	INC = function(a, b, c)
 		-- the monopramic increment-by-one instruction., aka ADD 1, R, R
@@ -179,7 +179,7 @@ local encoders = {
 		if not (af == 'register' and aa and av=='ACC') then
 			return false, "INC only supports absolute ACC as a destination" end
 		
-		return string.char(0x01)
+		return string.char(op.INC_1dACC)
 	end;
 	DEC = function(a, b, c)
 		-- the monopramic decrement-by-one instruction., aka SUB 1, R, R
@@ -190,7 +190,7 @@ local encoders = {
 		if not (af == 'register' and aa and av=='ACC') then
 			return false, "DEC only supports absolute ACC as a destination" end
 		
-		return string.char(0x1f)
+		return string.char(op.DEC_1dACC)
 	end;
 	ADD = function(a, b, c)
 		-- Addtion instruction, performs basic addition
@@ -209,15 +209,15 @@ local encoders = {
 			
 		if cv == 'ACC' then
 			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
-				return string.char(0x09)
+				return string.char(op.ADD_1dA_2dB_3dACC)
 			else -- free-register form
-				return string.char(0x06, reg_encode(av, bv))
+				return string.char(op.ADD_1dR_2dR_3dACC, reg_encode(av, bv))
 			end
 		elseif cv=='RET' then
 			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
-				return string.char(0xa6)
+				return string.char(op.ADD_1dA_2dB_3dRET)
 			else -- free-register form
-				return string.char(0xa4, reg_encode(av, bv))
+				return string.char(op.ADD_1dR_2dR_3dRET, reg_encode(av, bv))
 			end
 		end
 		return false, "unhandled ADD form!"
@@ -237,16 +237,16 @@ local encoders = {
 			return false, "SUB only supports absolute ACC or RET as a destination" end
 		
 		if cv == 'ACC' then
-			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
-				return string.char(0xa7)
+			if (av == "A") and (bv == "B") then
+				return string.char(op.SUB_1dA_2dB_3dACC)
 			else -- free-register form
-				return string.char(0x06, reg_encode(av, bv))
+				return string.char(op.SUB_1dR_2dR_3dACC, reg_encode(av, bv))
 			end
 		elseif cv=='RET' then
-			if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
-				return string.char(0xa5)
+			if (av == "A") and (bv == "B") then
+				return string.char(op.SUB_1dA_2dB_3dRET)
 			else -- free-register form
-				return string.char(0x20, reg_encode(av, bv))
+				return string.char(op.SUB_1dR_2dR_3dRET, reg_encode(av, bv))
 			end
 		end
 	end;
@@ -265,9 +265,9 @@ local encoders = {
 			return false, "DIV only supports absolute RET or ACC as a destination" end
 		
 		if cv == 'RET' then
-			return string.char(0xa1, reg_encode(av, bv))
+			return string.char(op.DIV_1dR_2dR_3dRET, reg_encode(av, bv))
 		else -- cv == ACC
-			return string.char(0x1d, reg_encode(av, bv))
+			return string.char(op.DIV_1dR_2dR_3dACC, reg_encode(av, bv))
 		end
 	end;
 	MUL = function(a, b, c)
@@ -285,9 +285,9 @@ local encoders = {
 			return false, "MUL only supports absolute RET or ACC as a destination." end
 		
 		if cv == 'RET' then
-			return string.char(0x19, reg_encode(av, bv))
+			return string.char(op.MUL_1dR_2dR_3dRET, reg_encode(av, bv))
 		else -- cv == ACC
-			return string.char(0x1e, reg_encode(av, bv))
+			return string.char(op.MUL_1dR_2dR_3dACC, reg_encode(av, bv))
 		end
 	end;
 	MOD = function(a, b, c)
@@ -305,9 +305,9 @@ local encoders = {
 			return false, "MOD only supports absolute RET or ACC as a destination" end
 		
 		if cv == 'RET' then
-			return string.char(0x1b, reg_encode(av, bv))
+			return string.char(op.MOD_1dR_2dR_3dRET, reg_encode(av, bv))
 		else -- cv == ACC
-			return string.char(0x1c, reg_encode(av, bv))
+			return string.char(op.MOD_1dR_2dR_3dACC, reg_encode(av, bv))
 		end
 	end;
 	SHW = function(a, b, c)
@@ -320,9 +320,9 @@ local encoders = {
 			return false, "SHW only presently works for absolute registers" end
 		
 		if av=='A' then
-			return string.char(0x0a)
+			return string.char(op.SHW_1dA)
 		else
-			return string.char(0xa1, reg_encode(av))
+			return string.char(op.SHW_1dR, reg_encode(av))
 		end
 	
 	end;
@@ -330,7 +330,7 @@ local encoders = {
 		-- halt instruction, tells the machine to halt
 		if not (not (a or b or c)) then
 			return false, "HLT must be properly qualified: 'HLT'" end
-		return string.char(0xff)
+		return string.char(op.STOP)
 	end;
 	SWP = function(a, b, c)
 		-- swap, exchanges the values of parameters. only defined
@@ -345,9 +345,9 @@ local encoders = {
 			return false,  "SWP only works with absolute parms" end
 		
 		if (av == "A" or av == "B") and (bv == "A" or bv == "B") then
-			return string.char(0x08)
+			return string.char(op.SWP_1dA_2dB)
 		else -- free-register form
-			return string.char(0x07, reg_encode(av, bv))
+			return string.char(op.SWP_1dR_2dR, reg_encode(av, bv))
 		end
 		return false, "unhandled SWP form!"
 	end;
@@ -367,10 +367,8 @@ local encoders = {
 			return false, "LES may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
-			return string.char(0x0d)
+			return string.char(op.LES_1dA_2dB_3dRET)
 		else -- free-register form
-			
-			--return string.char(0x0d)
 			return false, "LES is only currently defined in the form LES .A,.B"
 		end
 		return false, "unhandled LES form!"
@@ -391,10 +389,8 @@ local encoders = {
 			return false, "GTR may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
-			return string.char(0xa3)
+			return string.char(op.GTR_1dA_2dB_3dRET)
 		else -- free-register form
-			
-			--return string.char(0x0d)
 			return false, "GTR is only currently defined in the form GTR .A,.B"
 		end
 	end;
@@ -414,9 +410,8 @@ local encoders = {
 			return false, "EQL may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
-			return string.char(0xa0)
+			return string.char(op.EQL_1dA_2dB_3dRET)
 		else -- free-register form
-			
 			return false, "EQL is only currently defined in the form EQL .A,.B"
 		end
 		return false, "unhandled EQL form!"
@@ -437,11 +432,13 @@ local encoders = {
 			return false, "GTE may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
-			return string.char(0x08,0x0d,0x08) -- swap, lessthan, swap
+			return string.char(op.SWP_1dA_2dB,op.LES_1dA_2dB_3dRET,op.SWP_1dA_2dB)
+		elseif (av == "B") and (bv == "A") then
+			return string.char(op.SWP_1dA_2dB,op.LES_1dA_2dB_3dRET,op.SWP_1dA_2dB)
 		else -- free-register form
-			return false, "GTE is only currently defined in the form GTE .A,.B"
+			return false, "GTE is only currently defined in the forms GTE .A,.B and GTE .B .A"
 		end
-		return false, "unhandled GRT form!"
+		return false, "unhandled GTE form!"
 	end;
 	LTE = function(a, b, c)
 		-- less-than-or-equal-to instruction, compares two values and stores
@@ -459,7 +456,9 @@ local encoders = {
 			return false, "LTE may only place its result in RET" end
 		
 		if (av == "A") and (bv == "B") then
-			return string.char(0x08,0xa3,0x08) -- swap, lessthan, swap
+			return string.char(op.SWP_1dA_2dB,op.GTR_1dA_2dB_3dRET,op.SWP_1dA_2dB)
+		elseif (av == "B") and (bv == "A") then
+			return string.char(op.SWP_1dA_2dB,op.GTR_1dA_2dB_3dRET,op.SWP_1dA_2dB)
 		else -- free-register form
 			return false, "LTE is only currently defined in the form LTE .A,.B" 
 		end
@@ -479,9 +478,9 @@ local encoders = {
 			return false, "JNZ only supports absolute (inline) jump targets at this time." end
 		
 		if bf == 'literal' then 
-			return string.char(0x0c, bv)
+			return string.char(op.JNZ_1dRET_2dN, bv)
 		elseif bf == 'symbol' then
-			return string.char(0x0c, 0x00), true
+			return string.char(op.JNZ_1dRET_2dN, 0x00), true
 		end		
 		return false, "unhandled JNZ form!"
 	end;
@@ -491,18 +490,15 @@ local encoders = {
 		if not (a and not (b or c)) then 
 			return false, "JMP must be properly qualified: 'JMP nn'" end
 		local af, aa, av = parm(a)
-		if not (aa) then
-			return false, "JMP only supports absolute jump targets at this time." end
 		
 		if af == 'literal' then 
-			return string.char(0x0b, av)
+			return string.char(op.JMP_1dN, av)
 		elseif af == 'symbol' then
-			return string.char(0x0b, 0x00), true
+			return string.char(op.JMP_1dN, 0x00), true
 		elseif af == 'register' then
-			-- this is actually the free-register LJMP opcode, mapping the 
-			-- first parm to SEG (the segment pointer) makes it effectively
-			-- a free-register short-jump
-			return string.char(0x25,  reg_encode('SEG', av))
+			-- theres no actual free-register JMP, but LJMP with SEG as 1dR is equivilent.
+			-- (its also the same size)
+			return string.char(op.LJMP_1dR_1dR,  reg_encode('SEG', av))
 		end		
 		return false, "unhandled JMP form!"
 	end;
@@ -518,7 +514,7 @@ local encoders = {
 		if not (af == 'register' and bf == 'register') then
 			return false, "LJMP only supports register jump targets at this time." end
 		
-		return string.char(0x25,  reg_encode(av, bv))
+		return string.char(op.LJMP_1dR_1dR,  reg_encode(av, bv))
 	end;
 	LET = function(a, b, c)
 		-- LET psudo-instruction, defines a sybol as the given value.
@@ -534,7 +530,7 @@ local encoders = {
 			return false, "only literals, or known symbols may be stored" end
 
 		symbols[a] = tonumber(b) or 0
-		return ""
+		return "" -- non-encoding.
 	end;
 	LBL = function(a, b, c)
 		-- Label psudo-instruction, sets the named symbols to the offset and 
@@ -550,7 +546,7 @@ local encoders = {
 		
 		if av then symbols[av] = len%256 end
 		if bv then symbols[bv] = math.floor(len/256) end
-		return ""
+		return "" -- non-encoding.
 	end;
 	BYTE = function(a, b, c)
 		-- BYTE psudo-instruction, defines the given symbols as the offset
@@ -610,9 +606,9 @@ local encoders = {
 			return false, "MNZ only supports absolute values at this time." end
 		
 		if bf == 'register' then 
-			return string.char(0x0e, reg_encode(av, bv), cv)
+			return string.char(op.MNZ_1dR_2dR_3dN, reg_encode(av, bv), cv)
 		elseif bf == 'symbol' then
-			return string.char(0x0e, reg_encode(av, bv), 0x00), true
+			return string.char(op.MNZ_1dR_2dR_3dN, reg_encode(av, bv), 0x00), true
 		end		
 		return false, "unhandled MNZ form!"
 	end;
@@ -628,7 +624,7 @@ local encoders = {
 		if not (aa and ba) then
 			return false, "NOT only works with absolute registers" end
 		
-		return string.char(0x10, reg_encode(av, bv))
+		return string.char(op.NOT_1dR_2dR_1dR, reg_encode(av, bv))
 	end;
 	AND = function(a, b, c)
 		-- bitwise-AND instruction
@@ -644,7 +640,7 @@ local encoders = {
 		if not (ca and cv=='RET') then
 			return false, "AND may only place its result in RET" end
 		
-		return string.char(0x11, reg_encode(av, bv))
+		return string.char(op.AND_1dR_2dR_3dRET, reg_encode(av, bv))
 	end;
 	OR = function(a, b, c)
 		-- bitwise-OR instruction
@@ -660,7 +656,7 @@ local encoders = {
 		if not (ca and cv=='RET') then
 			return false, "OR may only place its result in RET" end
 		
-		return string.char(0x12, reg_encode(av, bv))
+		return string.char(op.OR_1dR_2dR_3dRET, reg_encode(av, bv))
 	end;
 	XOR = function(a, b, c)
 		-- bitwise-XOR instruction
@@ -674,7 +670,7 @@ local encoders = {
 		if not (aa and ba) then
 			return false, "XOR only works with absolute registers" end
 		
-		return string.char(0x13, reg_encode(av, bv))
+		return string.char(op.XOR_1dR_2dR_3dRET, reg_encode(av, bv))
 	end;
 	SHL = function(a, b, c)
 		-- Shift left instruction. shifts the bitpattern of the given value a
@@ -692,7 +688,7 @@ local encoders = {
 		if not (ca and cv=='RET') then
 			return false, "SHL may only place its result in RET" end
 		
-		return string.char(0x14, reg_encode(av, bv))
+		return string.char(op.SHL_1dR_2dR_3dRET, reg_encode(av, bv))
 	end;
 	SHR = function(a, b, c)
 		-- Shift right instruction. shifts the bitpattern of the given value
@@ -710,7 +706,7 @@ local encoders = {
 		if not (ca and cv=='RET') then
 			return false, "SHR may only place its result in RET" end
 		
-		return string.char(0x15, reg_encode(av, bv))
+		return string.char(op.SHR_1dR_2dR_3dRET, reg_encode(av, bv))
 	end;
 	SRE = function(a, b, c)
 		-- similar to SHR, save that it extends the sign-bit, thus
@@ -727,7 +723,7 @@ local encoders = {
 		if not (ca and cv=='RET') then
 			return false, "SHR may only place its result in RET" end
 		
-		return string.char(0x16, reg_encode(av, bv))
+		return string.char(op.SRE_1dR_2dR_3dRET, reg_encode(av, bv))
 	end;
 	ROL = function(a, b, c)
 		-- Roll Left instruction. Rolls are similar in effect to shifts,
@@ -745,7 +741,7 @@ local encoders = {
 		if not (ca and cv=='RET') then
 			return false, "ROL may only place its result in RET" end
 		
-		return string.char(0x26, reg_encode(av, bv))
+		return string.char(op.ROL_1dR_2dR_3dRET, reg_encode(av, bv))
 	end;
 	ROR = function(a, b, c)
 		-- Roll Right instruction. Rolls are similar in effect to shifts,
@@ -763,7 +759,7 @@ local encoders = {
 		if not (ca and cv=='RET') then
 			return false, "ROR may only place its result in RET" end
 		
-		return string.char(0x27, reg_encode(av, bv))
+		return string.char(op.ROR_1dR_2dR_3dRET, reg_encode(av, bv))
 	end;
 	IN = function(a, b, c)
 		-- Device port read instruction. attempts to read a single value
@@ -778,7 +774,7 @@ local encoders = {
 		if not (aa and ba) then
 			return false, "IN only works with absolute registers" end
 		
-		return string.char(0x17, reg_encode(av, bv))
+		return string.char(op.IN_1dR_2dR, reg_encode(av, bv))
 	end;
 	OUT = function(a, b, c)
 		-- Device port write instruction. attempts send a given byte of data
@@ -792,7 +788,7 @@ local encoders = {
 		if not (aa and ba) then
 			return false, "OUT only works with absolute registers" end
 		
-		return string.char(0x18, reg_encode(av, bv))
+		return string.char(op.OUT_1dR_2dR, reg_encode(av, bv))
 	end;
 
 }

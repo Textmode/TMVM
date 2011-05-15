@@ -3,6 +3,7 @@ local bitfield = require "bitfield"
 local device = require "device"
 local util = require 'util'
 local socket = desire 'socket'
+local opcodes = require 'opcodes'
 
 local _M = {_NAME="machine", number=0}
 
@@ -66,8 +67,8 @@ local parity = {
 -------------------------------------------------------------------------
 -- MISC
 -- number to register mappings
-local cr_tbl = {[0x0]='PRM', [0x1]='A',   [0x2]='B',   [0x3]='C',   [0x4]='D',
-                [0x5]='ACC', [0x6]='RET', [0xc]='FLG',[0xd]='SIG', [0xe]='SEG', [0xf]='IP' }
+local cr_tbl = {[0x0]='A',  [0x1]='B',   [0x2]='C',   [0x3]='D',   [0x4]='ACC', [0x5]='RET',
+                [0xa]='SS', [0xb]='SP', [0xc]='FLG',[0xd]='SIG', [0xe]='SEG', [0xf]='IP' }
 
 
 -------------------------------------------------------------------------
@@ -78,7 +79,7 @@ local function printf(...)
 	print(string.format(...))
 end
 
--- a variant of io.write that include printf-like formating.
+-- a variant of io.write that include printf-like formatting.
 local function writef(...)
 	io.write(string.format(...))
 end
@@ -157,6 +158,7 @@ end
 -- stores a value at a given segment and offset.
 local function adrset(m, adr, value, seg)
 	assert(m and adr, "adrset requires a segment (or machine), and an address")
+	assert(value, "adrset requires a value")
 	seg = seg or m.SEG
 	m.memory[adr+(seg*256)] = value
 end
@@ -219,408 +221,544 @@ end
 local function nop() end
 
 -------------------------------------------------------------------------
+-- opcode Function
+-- the actual functions that do the heavy-lifting.
+local ins = {}
+
+--generals...
+local function store(self, reg, seg, adr)
+	assert(reg, "must be given a valid register")
+	assert(type(reg) == 'string', "must be given a valid register name")
+	assert(seg and adr, "must be given a valid address")
+	adrset(self, adr, self[reg], seg)
+end
+
+local function load(self, reg, seg, adr)
+	assert(reg, "must be given a valid register")
+	assert(type(reg) == 'string', "must be given a valid register name")
+	assert(seg and adr, "must be given a valid address")
+
+	self[reg] = adrget(self, adr, seg)
+end
+
+-- specifics...
+
+-- NOP 
+--  No OPeration, do nothing, etc.
+function ins.NOP(self)
+	return 1;
+end;
+
+-- INC A
+--  Fixed register Increment
+function ins.INC_1dA(self)
+	self.A = doflags(self,(self.A+1)) % 256
+	return 1
+end;
+-- INC B
+--  Fixed register Increment
+function ins.INC_1dB(self)
+	self.B = doflags(self,(self.B+1)) % 256
+	return 1
+end;
+-- INC C
+--  Fixed register Increment
+function ins.INC_1dC(self)
+	self.C = doflags(self,(self.C+1)) % 256
+	return 1
+end;
+-- INC D
+--  Fixed register Increment
+function ins.INC_1dD(self)
+	self.D = doflags(self,(self.D+1)) % 256
+	return 1
+end;
+-- INC ACC
+--  Fixed register Increment
+function ins.INC_1dACC(self)
+	self.ACC = doflags(self,(self.ACC+1)) % 256
+	return 1
+end;
+
+-- DEC A
+--  Fixed register Decrement
+function ins.DEC_1dACC(self)
+	self.A = doflags(self,(self.A-1)) % 256
+	return 1
+end;
+-- DEC B
+--  Fixed register Decrement
+function ins.DEC_1dACC(self)
+	self.B = doflags(self,(self.B-1)) % 256
+	return 1
+end;
+-- DEC C
+--  Fixed register Decrement
+function ins.DEC_1dC(self)
+	self.C = doflags(self,(self.C-1)) % 256
+	return 1
+end;
+-- DEC D
+--  Fixed register Decrement
+function ins.DEC_1dD(self)
+	self.D = doflags(self,(self.D-1)) % 256
+	return 1
+end;
+-- DEC ACC
+--  Fixed register Decrement
+function ins.DEC_1dACC(self)
+	self.ACC = doflags(self,(self.ACC-1)) % 256
+	return 1
+end;
+
+-- MOV &R:&R 
+--  indirect free-register move
+function ins.MOV_1iR_2iR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	adrset(self, self[b], adrget(self, self[a]))
+	return 2;
+end;
+
+-- MOV .A:nn 
+--  Move A to addresss. 
+function ins.MOV_1dA_2dN(self) 
+	store(self, 'A', self.SEG, adrget(self, self.IP+1))
+	return 2;
+end;
+
+-- MOV .B:nn 
+--  Move B to addresss. 
+function ins.MOV_1dB_2dN(self) 
+	store(self, 'B', self.SEG, adrget(self, self.IP+1))
+	return 2;
+end;
+
+-- MOV .C:nn 
+--  Move C to addresss. 
+function ins.MOV_1dC_2dN(self) 
+	store(self, 'C', self.SEG, adrget(self, self.IP+1))
+	return 2;
+end;
+
+-- MOV .D:nn 
+--  Move D to addresss. 
+function ins.MOV_1dD_2dN(self) 
+	store(self, 'D', self.SEG, adrget(self, self.IP+1))
+	return 2;
+end;
+
+-- MOV &nn:.A 
+--  Put address contents into A
+function ins.MOV_1iN_2dA(self) 
+	local point = adrget(self, self.IP+1)
+	self.A = adrget(self, point)
+	return 2;
+end;
+
+-- MOV nn:.A
+--  put literal into A
+function ins.MOV_1dN_2dA(self) 
+	self.A = adrget(self, self.IP+1)
+	return 2;
+end;
+
+-- MOV nn, B
+--  Fixed-register literal MOV to B
+function ins.MOV_1dN_2dB(self) 
+	self.B = adrget(self, self.IP+1)
+	return 2;
+end;	
+
+-- MOV R:R
+--  free-register move
+function ins.MOV_1dR_2dR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self[b] = self[a]
+	return 2;
+end;
+
+-- MOV &nn, B
+--  Fixed-register indirect MOV to B
+function ins.MOV_1iN_2dB(self) 
+	self.B = adrget(self, adrget(self, self.IP+1))
+	return 2;
+end;	
+
+-- MOV B, &nn
+--  Fixed-register indirect MOV from B
+function ins.MOV_1dB_2iN(self) 
+	adrset(self,adrget(self, self.IP+1), self.B)
+	return 2;
+end;	
+
+-- ADD .A:.B -> .RET
+--  fixed-register AB ADDition, results in RET
+function ins.ADD_1dA_2dB_3dRET(self) 
+	local r = (self.A + self.B)
+	
+	self.RET = doflags(self, r) % 256
+	return 1;
+end;	
+
+-- ADD .A:.B -> .ACC
+--  fixed-register AB ADDition, results in ACC
+function ins.ADD_1dA_2dB_3dACC(self) 
+	local r = (self.A + self.B)
+	
+	self.ACC = doflags(self, r) % 256
+	return 1;
+end;	
+
+-- ADD R:R -> .ACC 
+--  free-register ADDition, results in ACC
+function ins.ADD_1dR_2dR_3dACC(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local r = (self[a] + self[b])
+	self.ACC = doflags(self, r) % 256
+	return 2;
+end;
+
+-- ADD R:R -> .RET
+--  free-register ADDition, results in ACC
+function  ins.ADD_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local r = (self[a] + self[b])
+	
+	self.RET = doflags(self, r) % 256
+	return 2;
+end;
+
+-- SWP R:R 
+--  Free-register swap
+function ins.SWP_1dR_2dR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self[a], self[b] = self[b], self[a]
+	return 2;
+end;
+
+-- MNZ R, R, nn
+--  free-register conditional move to literal address
+function ins.MNZ_1dR_2dR_3dN(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local c = adrget(self, self.IP+2)
+	
+	if self[a] ~= 0 then
+		adrset(self, c, self[b])
+	end
+	return 3;
+end;
+
+
+-- SWP .A:.B (or SWP .B:.A ...)
+--  fixed register AB swap
+function ins.SWP_1dA_2dB(self) 
+	self.A, self.B = self.B, self.A
+	return 1;
+end;
+
+-- ADD .A:.B -> .ACC
+--  fixed-register AB ADDition, results in ACC
+function ins.ADD_1dA_2dB(self) 
+	local r = (self.A + self.B)
+	
+	self.ACC = doflags(self, r) % 256
+	return 1;
+end;	
+
+
+-- SHW .A
+--  fixed register Show A
+function ins.SHW_1dA(self) 
+	print("A: "..self.A)
+	return 1;
+end;
+
+-- SHW R 
+--  Free-register show
+function ins.SHW_1dR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	print(a..": "..self[a])
+	return 2;
+end;
+
+-- JMP nn (or MOV  nn:.IP
+--  unconditional jump with literal address
+function ins.JMP_1dN(self) 
+	self.IP = adrget(self, self.IP+1)
+	return 0;
+end;
+
+-- JNZ .RET, nn (or MNZ .RET, nn:.IP)
+--  fixed-register RET conditional jump with literal address
+function ins.JNZ_1dRET_2dN(self)
+	if self.RET ~= 0 then
+		self.IP = adrget(self, self.IP+1)
+		return 0
+	end
+	return 2;
+end;
+
+-- NOT R -> R
+--  free-register Bitwise NOT in:out
+function ins.NOT_1dR_2dR_1dR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self[b] = bitfield:new(self[a], 8):NOT()
+	return 2;
+end;
+
+-- AND R:R -> .RET
+--  free-register bitwise AND
+function ins.AND_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.RET = bitfield:new(self[a], 8):AND(self[b])
+	return 2;
+end;
+
+-- OR R:R -> .RET
+--  free-register bitwise OR
+function ins.OR_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.RET = bitfield:new(self[a], 8):OR(self[b])
+	return 2;
+end;
+
+-- XOR R:R -> .RET
+--  free-register bitwise XOR
+function ins.XOR_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.RET = bitfield:new(self[a], 8):XOR(self[b])
+	return 2;
+end;
+
+-- SHL R:R -> .RET
+--  free-register shift left
+function ins.SHL_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.RET = bitfield:new(self[a], 8):shift(self[b])
+	return 2;
+end;
+
+-- SHR R:R -> .RET
+--  free-register shift right
+function ins.SHR_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.RET = bitfield:new(self[a], 8):shift(-self[b])
+	return 2;
+end;
+
+-- SRE R:R -> .RET
+--  free-register shift right w/ sign extension
+function ins.SRE_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.RET = bitfield:new(self[a], 8):shift(-self[b], true)
+	return 2;
+end;
+
+-- ROL R:R -> .RET
+--  free-register roll left
+function ins.ROL_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.RET = bitfield:new(self[a], 8):roll(self[b])
+	return 2;
+end;
+
+-- ROR R:R -> .RET
+--  free-register roll right
+function ins.ROR_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.RET = bitfield:new(self[a], 8):roll(-self[b])
+	return 2;
+end;
+
+-- IN R1 -> R2
+--  free-register I/O port read
+function ins.IN_1dR_2dR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local ret, err = self:deviceRead(self[a])
+	if not ret then
+		self:signal(SIG_DEVICE_NOT_READY)
+	else
+		self[b] = ret
+	end
+	return 2;
+end;
+
+-- OUT R1, R2
+--  free-register I/O port write
+function ins.OUT_1dR_2dR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local ret, err = self:deviceWrite(self[a], self[b])
+	if not ret then
+		self:signal(SIG_DEVICE_NOT_READY)
+	end
+	return 2;
+end;
+
+
+-- MUL R, R -> RET
+--  Free-register Multiply
+function ins.MUL_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	if a == 'PRM' or b == 'PRM' then
+		self:signal(SIG_ILLEGAL_INSTRUCTION) end
+		
+	local r = round(self[a] * self[b])
+	
+	self.RET = doflags(self, r) % 256
+	return 2;
+end;
+-- SUB .A:.B -> .ACC
+--  fixed-register AB ADDition, results in ACC
+function ins.SUB_1dA_2dB_3dACC(self) 
+	local r = (self.A - self.B)
+
+	self.ACC = doflags(self, r) % 256
+	return 1;
+end;	
+
+-- SUB R1:.R2 -> .ACC
+--  free-register ADDition, results in ACC
+function ins.SUB_1dR_2dR_3dACC(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local r = (self[a] - self[b])
+	
+	self.ACC = doflags(self, r) % 256
+	return 2;
+end;	
+
+-- SUB .A:.B -> .RET
+--  fixed-register AB ADDition, results in ACC
+function ins.SUB_1dA_2dB_3dRET(self) 
+	local r = (self.A - self.B)
+
+	self.ACC = doflags(self, r) % 256
+	return 1;
+end;	
+
+-- SUB R1:.R2 -> .RET
+--  free-register SUBition, results in RET
+function ins.SUB_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local r = (self[a] - self[b])
+	
+	self.RET = doflags(self, r) % 256
+	return 2;
+end;	
+
+
+-- MOD R, R -> RET
+--  Free-register Modulo
+function ins.MOD_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local r =round(self[a] % self[b])
+	self.RET = doflags(self, r) % 256
+	return 2;
+end;
+
+-- MOD R, R -> ACC
+--  Free-register Modulo
+function ins.MOD_1dR_2dR_3dACC(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local r = round(self[a] % self[b])
+	
+	self.ACC = doflags(self, r) % 256
+	return 2;
+end;
+
+-- DIV R, R -> ACC
+--  Free-register divide
+function ins.DIV_1dR_2dR_3dACC(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	if self.b == 0 then self:signal(SIG_DIV0) end
+	local r = round(self[a] / self[b])
+	self.ACC = doflags(self, r) % 256
+	return 2;
+end;
+
+-- DIV R, R -> RET
+--  Free-register divide
+function ins.DIV_1dR_2dR_3dRET(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	if self.b == 0 then self:signal(SIG_DIV0) end
+	local r = round(self[a] / self[b])
+	self.RET = doflags(self, r) % 256
+	return 2;
+end;
+
+
+-- MUL R, R -> ACC
+--  Free-register Multiply
+function ins.MUL_1dR_2dR_3dACC(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	
+	local r = round(self[a] * self[b])
+	
+	self.ACC = doflags(self, r) % 256
+	return 2;
+end;
+
+-- LMOV R1(seg),R2(off),R3(destseg), R4(destoff)
+--  free-register direct Long-move
+function ins.LMOV_1dR_2dR_3dR_4dR(self)
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local c, d = convreg(self, adrget(self, self.IP+2))
+	adrset(self, self[d], adrget(self, self[b], self[a]), self[c])
+	return 3;
+end;	
+
+-- LJMP R1(seg), R2(off)
+--  free-register unconditional jump
+function ins.LJMP_1dR_2dR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	self.SEG = self[a]
+	self.IP  = self[b]
+	return 0;
+end;
+
+-- EQL .A:.B -> .RET 
+--  fixed-register AB equals, results in RET
+function ins.EQL_1dA_2dB_3dRET(self) 
+	self.RET = ({[true]=1,[false]=0})[self.A == self.B]
+	return 1;
+end;
+
+-- GTR .A:.B -> .RET 
+--  Fixed-register AB greater-than, results in RET
+function ins.GTR_1dA_2dB_3dRET(self) 
+	self.RET = ({[true]=1,[false]=0})[self.A > self.B]
+	return 1;
+end;
+
+-- LES .A:.B -> .RET
+--  Fixed-register AB less-than, results in RET
+function ins.LES_1dA_2dB_3dRET(self)
+	self.RET = ({[true]=1,[false]=0})[self.A < self.B]
+	return 1;
+end;
+
+-- HLT 
+--  halts the machine
+function ins.HLT(self) 
+	self.state = 'halt';
+	return 0;
+end;
+
+-------------------------------------------------------------------------
 -- Instruction set
 --
--- the long table of opcode-function pairs that drive this malformed beast.
-_M.iset = {
-	-- NOP 
-	--  No OPeration, do nothing, etc.
-	[0x00]=function(self) 
-		return 1;
-	end;
-	-- INC ACC
-	--  Fixed register Increment
-	[0x01]=function(self)
-		local r = (self.ACC+1)
-		
-		self.ACC = doflags(self, r) % 256
-		return 1
-	end;
-	-- MOV &R:&R 
-	--  indirect free-register move
-	[0x02]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		adrset(self, self[b], adrget(self, self[a]))
-		return 2;
-	end;
-	-- MOV .A:&nn 
-	--  Move A to addresss. 
-	[0x03]=function(self) 
-		local point = adrget(self, self.IP+1)
-		adrset(self, point, self.A)
-		return 2;
-	end;
-	-- MOV &nn:.A 
-	--  Put address contents into A
-	[0x04]=function(self) 
-		local point = adrget(self, self.IP+1)
-		self.A = adrget(self, point)
-		return 2;
-	end;
-	-- MOV nn:.A
-	--  put literal into A
-	[0x05]=function(self) 
-		self.A = adrget(self, self.IP+1)
-		return 2;
-	end;
-	-- ADD R:R -> .ACC 
-	--  free-register ADDition, results in ACC
-	[0x06]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		local r = (self[a] + self[b])
-		
-		self.ACC = doflags(self, r) % 256
-		return 2;
-	end;
-	-- SWP R:R 
-	--  Free-register swap
-	[0x07]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self[a], self[b] = self[b], self[a]
-		return 2;
-	end;
+
+_M.iset = {}
+local remap = opcodes.map
+local map
+for i=0, 0xff do
+	map = (remap[i] and remap[i][1]) or false
+	if map then
+		if not ins[map] then error(string.format("illegal mapping %02x to '%s'", i, tostring(map))) end
+		_M.iset[i] = ins[map]
+	end
+end
 	
-	
-	-- SWP .A:.B (or SWP .B:.A ...)
-	--  fixed register AB swap
-	[0x08]=function(self) 
-		self.A, self.B = self.B, self.A
-		return 1;
-	end;
-	-- ADD .A:.B -> .ACC
-	--  fixed-register AB ADDition, results in ACC
-	[0x09]=function(self) 
-		local r = (self.A + self.B)
-		
-		self.ACC = doflags(self, r) % 256
-		return 1;
-	end;	
-	-- SHW .A
-	--  fixed register Show A
-	[0x0a]=function(self) 
-		print("A: "..self.A)
-		return 1;
-	end;
-	-- JMP nn (or MOV  nn:.IP
-	--  unconditional jump with literal address
-	[0x0b]=function(self) 
-		self.IP = adrget(self, self.IP+1)
-		return 0;
-	end;
-	-- JNZ .RET, nn (or MNZ .RET, nn:.IP)
-	--  fixed-register RET conditional jump with literal address
-	[0x0c]=function(self)
-		if self.RET ~= 0 then
-			self.IP = adrget(self, self.IP+1)
-			return 0
-		end
-		return 2;
-	end;
-	-- LES .A:.B -> .RET
-	--  Fixed-register AB less-than, results in RET
-	[0x0d]=function(self)
-		self.RET = ({[true]=1,[false]=0})[self.A < self.B]
-		return 1;
-	end;
-	-- MNZ R, R, &nn
-	--  free-register conditional move to literal address
-	[0x0e]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		local c = adrget(self, self.IP+2)
-		
-		if a == 'PRM' or b == 'PRM' then
-			self:signal(SIG_ILLEGAL_INSTRUCTION)
-		elseif self[a] ~= 0 then
-			adrset(self, c, self[b])
-		end
-		return 3;
-	end;
-	-- MOV R:R
-	--  free-register move
-	[0x0f]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self[b] = self[a]
-		return 2;
-	end;
-	
-	
-	-- NOT R -> R
-	--  free-register Bitwise NOT in:out
-	[0x10]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self[b] = bitfield:new(self[a], 8):NOT()
-		return 2;
-	end;
-	-- AND R:R -> .RET
-	--  free-register bitwise AND
-	[0x11]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = bitfield:new(self[a], 8):AND(self[b])
-		return 2;
-	end;
-	-- OR R:R -> .RET
-	--  free-register bitwise OR
-	[0x12]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = bitfield:new(self[a], 8):OR(self[b])
-		return 2;
-	end;
-	-- XOR R:R -> .RET
-	--  free-register bitwise XOR
-	[0x13]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = bitfield:new(self[a], 8):XOR(self[b])
-		return 2;
-	end;
-	-- SHL R:R -> .RET
-	--  free-register shift left
-	[0x14]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = bitfield:new(self[a], 8):shift(self[b])
-		return 2;
-	end;
-	-- SHR R:R -> .RET
-	--  free-register shift right
-	[0x15]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = bitfield:new(self[a], 8):shift(-self[b])
-		return 2;
-	end;
-	-- SRE R:R -> .RET
-	--  free-register shift right w/ sign extension
-	[0x16]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = bitfield:new(self[a], 8):shift(-self[b], true)
-		return 2;
-	end;
-	-- IN R1 -> R2
-	--  free-register I/O port read
-	[0x17]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-
-		local ret, err = self:deviceRead(self[a])
-		if not ret then
-			self:signal(SIG_DEVICE_NOT_READY)
-		else
-			self[b] = ret
-		end
-		return 2;
-	end;
-	
-	
-	-- OUT R1, R2
-	--  free-register I/O port write
-	[0x18]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-
-		local ret, err = self:deviceWrite(self[a], self[b])
-		if not ret then
-			self:signal(SIG_DEVICE_NOT_READY)
-		end
-		return 2;
-	end;
-	-- MUL R, R -> RET
-	--  Free-register Multiply
-	[0x19]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		if a == 'PRM' or b == 'PRM' then
-			self:signal(SIG_ILLEGAL_INSTRUCTION) end
-			
-		local r = round(self[a] * self[b])
-		
-		self.RET = doflags(self, r) % 256
-		return 2;
-	end;
-	-- SUB R1:.R2 -> .ACC
-	--  free-register ADDition, results in ACC
-	[0x1a]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-
-		local r = (self[a] - self[b])
-		
-		self.ACC = doflags(self, r) % 256
-		return 2;
-	end;	
-	-- MOD R, R -> RET
-	--  Free-register Modulo
-	[0x1b]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		local r =round(self[a] % self[b])
-		self.RET = doflags(self, r) % 256
-		return 2;
-	end;
-	-- MOD R, R -> ACC
-	--  Free-register Modulo
-	[0x1c]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		local r = round(self[a] % self[b])
-		
-		self.ACC = doflags(self, r) % 256
-		return 2;
-	end;
-	-- DIV R, R -> ACC
-	--  Free-register divide
-	[0x1d]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		if self.b == 0 then self:signal(SIG_DIV0) end
-		local r = round(self[a] / self[b])
-		self.ACC = doflags(self, r) % 256
-		return 2;
-	end;
-	-- MUL R, R -> ACC
-	--  Free-register Multiply
-	[0x1e]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		if a == 'PRM' or b == 'PRM' then
-			self:signal(SIG_ILLEGAL_INSTRUCTION) end
-		
-		local r = round(self[a] * self[b])
-		
-		self.ACC = doflags(self, r) % 256
-		return 2;
-	end;
-	-- DEC ACC
-	--  Fixed register Decrement
-	[0x1f]=function(self)
-		local r = (self.ACC-1)
-		
-		self.ACC = doflags(self, r) % 256
-		return 1
-	end;
-
-
-	-- SUB R1:R2 -> RET
-	--  Free-register SUBtraction, results in RET
-	[0x20]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		local r = (self[a] - self[b])
-		
-		self.RET = doflags(self, r) % 256
-		return 2;
-	end;
-	-- MOV nn, B
-	--  Fixed-register literal MOV to B
-	[0x21]=function(self) 
-		self.B = adrget(self, self.IP+1)
-		return 2;
-	end;	
-	-- MOV &nn, B
-	--  Fixed-register indirect MOV to B
-	[0x22]=function(self) 
-		self.B = adrget(self, adrget(self, self.IP+1))
-		return 2;
-	end;	
-	-- MOV B, &nn
-	--  Fixed-register indirect MOV from B
-	[0x23]=function(self) 
-		adrset(self,adrget(self, self.IP+1), self.B)
-		return 2;
-	end;	
-	-- LMOV R1(seg),R2(off),R3(destseg), R4(destoff)
-	--  free-register direct Long-move
-	[0x24]=function(self)
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		local c, d = convreg(self, adrget(self, self.IP+2))
-		adrset(self, self[d], adrget(self, self[b], self[a]), self[c])
-		return 3;
-	end;	
-	-- LJMP R1(seg), R2(off)
-	--  free-register unconditional jump
-	[0x25]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.SEG = self[a]
-		self.IP  = self[b]
-		return 0;
-	end;
-	-- ROL R:R -> .RET
-	--  free-register roll left
-	[0x26]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = bitfield:new(self[a], 8):roll(self[b])
-		return 2;
-	end;
-	-- ROR R:R -> .RET
-	--  free-register roll right
-	[0x27]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		self.RET = bitfield:new(self[a], 8):roll(-self[b])
-		return 2;
-	end;
-
-
-	-- EQL .A:.B -> .RET 
-	--  fixed-register AB equals, results in RET
-	[0xa0]=function(self) 
-		self.RET = ({[true]=1,[false]=0})[self.A == self.B]
-		return 1;
-	end;
-	-- SHW R 
-	--  Free-register show
-	[0xa1]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		print(a..": "..self[a])
-		return 2;
-	end;
-	-- DIV R, R -> RET
-	--  Free-register divide
-	[0xa2]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		if self.b == 0 then self:signal(SIG_DIV0) end
-		local r = round(self[a] / self[b])
-		self.RET = doflags(self, r) % 256
-		return 2;
-	end;
-	-- GTR .A:.B -> .RET 
-	--  Fixed-register AB greater-than, results in RET
-	[0xa3]=function(self) 
-		self.RET = ({[true]=1,[false]=0})[self.A > self.B]
-		return 1;
-	end;
-	-- ADD R:R -> .RET
-	--  free-register ADDition, results in ACC
-	[0xa4]=function(self) 
-		local a, b = convreg(self, adrget(self, self.IP+1))
-		local r = (self[a] + self[b])
-		
-		self.RET = doflags(self, r) % 256
-		return 2;
-	end;
-	-- SUB .A:.B -> .RET
-	--  fixed-register AB SUBtraction, results in RET
-	[0xa5]=function(self) 
-		local r = (self.A - self.B)
-		
-		self.RET = doflags(self, r) % 256
-		return 1;
-	end;	
-	-- ADD .A:.B -> .RET
-	--  fixed-register AB ADDition, results in RET
-	[0xa6]=function(self) 
-		local r = (self.A + self.B)
-		
-		self.RET = doflags(self, r) % 256
-		return 1;
-	end;	
-	-- SUB .A:.B -> .ACC
-	--  fixed-register AB SUBtraction, results in ACC
-	[0xa7]=function(self) 
-		local r = (self.A - self.B)
-		
-		self.ACC = doflags(self, r) % 256
-		return 1;
-	end;	
-
-
-	-- HLT 
-	--  halts the machine
-	[0xff]=function(self) 
-		self.state = 'halt';
-		return 0;
-	end;
-	
-	}	
-	
-_M.speed = 1*MEGAHERTZ -- set he default speed.
+_M.speed = 1*MEGAHERTZ -- set the default speed.
 
 -----
 -- With parm it returns the current SIGnal
