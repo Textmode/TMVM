@@ -88,9 +88,9 @@ end
 -- regardless, the encoder ends by returning either the encoded chunk, or 
 -- false, followed by a message explaining the error.
 local encoders = {
-	NOP = function(a, b, c)
+	NOP = function(a, b, c, d)
 		-- NOP is the do-nothing instruction. it has only one form.
-		if not (a or b or c) then
+		if (a or b or c or d) then
 			return false, "NOP must be properly qualified: 'NOP'" end
 		return string.char(op.NOP)	
 	end;
@@ -498,7 +498,7 @@ local encoders = {
 		elseif af == 'register' then
 			-- theres no actual free-register JMP, but LJMP with SEG as 1dR is equivilent.
 			-- (its also the same size)
-			return string.char(op.LJMP_1dR_1dR,  reg_encode('SEG', av))
+			return string.char(op.LJMP_1dR_2dR,  reg_encode('SEG', av))
 		end		
 		return false, "unhandled JMP form!"
 	end;
@@ -790,7 +790,47 @@ local encoders = {
 		
 		return string.char(op.OUT_1dR_2dR, reg_encode(av, bv))
 	end;
+	LOAD = function(a, b)
+		-- the load instrution, used to load data from an address into a register
+		if not (a and b) then
+			return false, "LOAD must be properly qualified: 'LOAD iN,dR' or 'LOAD iR,dR'" end
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		if not (bf == 'register') then
+			return false, "LOAD only loads an indirect number or register into a direct register"
+		end
+		if aa or (not ba) then
+			return false, "LOAD only loads an indirect number or register into a direct register"
+		end
 
+		if af == 'register' then
+			return string.char(op.LOAD_1iR_2dR, reg_encode(av, bv))
+		elseif af == 'number' then
+			return string.char(op.LOAD_1iN_2dR, reg_encode('A', bv), av)
+		else -- af == 'symbol'
+			return string.char(op.LOAD_1iN_2dR, reg_encode('A', bv), 0x0)
+		end
+	end;
+	
+	STOR = function(a, b)
+		-- the store instrution, used to store data from a register into an address.
+		if not (a and b) then
+			return false, "STOR must be properly qualified: 'STOR dR,iN,' or 'LOAD dR,iR'" end
+		local af, aa, av = parm(a)
+		local bf, ba, bv = parm(b)
+		if not (af == 'register' and (bf == 'register' or bf == 'symbol' or bf == 'number')) then
+			return false, "STOR only stores a direct register into an indirect register or number" end
+		if (not aa) or ba then
+			return false, "STOR only stores a direct register into an indirect register or number" end
+
+		if bf == 'register' then
+			return string.char(op.STOR_1dR_2iR, reg_encode(av, bv))
+		elseif bf == 'number' then
+			return string.char(op.STOR_1dR_2iN, reg_encode(av, 'A'), bv)
+		else -- bf == 'symbol'
+			return string.char(op.STOR_1dR_2iN, reg_encode(av, 'A'), 0x0)
+		end
+	end;
 }
 
 -----

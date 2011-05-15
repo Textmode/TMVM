@@ -5,8 +5,8 @@ local remap = {
 	[0x01] = {'INC_1dACC'};
 	[0x02] = {'MOV_1iR_2iR'};
 	[0x03] = {'MOV_1dA_2dN'};
-	[0x04] = {'MOV_1iN_2dA'};
-	[0x05] = {'MOV_1dN_2dA'};
+	[0x04] = {'MOV_1iN_2dA',       'LOAD_1iN_2dA'};
+	[0x05] = {'MOV_1dN_2dA',       'LOAD_1dN_2dA'};
 	[0x06] = {'ADD_1dR_2dR_3dACC'};
 	[0x07] = {'SWP_1dR_2dR'};
 	
@@ -45,6 +45,12 @@ local remap = {
 	[0x25] = {'LJMP_1dR_2dR'};
 	[0x26] = {'ROL_1dR_2dR_3dRET'};
 	[0x27] = {'ROR_1dR_2dR_3dRET'};
+	
+	[0x28] = {'LOAD_1iR_2dR'};
+	[0x29] = {'LOAD_1iN_2dR'};
+	[0x2a] = {'STOR_1dR_2iR'};
+	[0x2b] = {'STOR_1dR_2iN'};
+	
 	
 	[0xa0] = {'EQL_1dA_2dB_3dRET'};
 	[0xa1] = {'SHW_1dR'};

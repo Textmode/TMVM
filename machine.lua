@@ -736,6 +736,41 @@ function ins.LES_1dA_2dB_3dRET(self)
 	return 1;
 end;
 
+-- LOAD &R: R
+--  Put address contents into register
+function ins.LOAD_1iR_2dR(self) 
+	local _, b = convreg(self, adrget(self, self.IP+1))
+	self[b] = adrget(self, self.a)
+	return 2;
+end;
+
+-- LOAD &nn: R
+--  Put address contents into register
+function ins.LOAD_1iN_2dR(self) 
+	local _, b = convreg(self, adrget(self, self.IP+1))
+	local point = adrget(self, self.IP+2)
+	self[b] = adrget(self, point)
+	return 3;
+end;
+
+-- STOR R: &R
+--  Put register contents into address
+function ins.STOR_1dR_2iR(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	adrset(self, self.b, self.a)
+	return 2;
+end;
+
+-- STOR R: &nn
+--  Put register contents into address
+function ins.STOR_1dR_2iN(self) 
+	local a, b = convreg(self, adrget(self, self.IP+1))
+	local point = adrget(self, self.IP+2)
+	adrset(self, point, self[a])
+	return 3;
+end;
+
+
 -- HLT 
 --  halts the machine
 function ins.HLT(self) 
@@ -868,7 +903,7 @@ function _M:load(start, data)
 	-- starting offset is optional, but we have to shuffle things around
 	-- a bit if its not given.
 	if data == nil then data, start = start, 0 end
-	assert(type(data)=='table' or type(data)=='string', "Invalid loadable data parm")
+	assert(type(data)=='table' or type(data)=='string', "Invalid loadable data parm: '" ..type(data).."'")
 	
 	if type(data)=='string' then data=stringtodata(data) end
 	
