@@ -58,21 +58,27 @@ end
 ---- Actual tests
 
 test:newsection("Test harness")
-test:newsubsection("Core")
+test:newsubsection("Core - must succeed")
 	test("true == true", 
 		"return true", true)
 	test("false == false", 
 		"return false", false)
-	test("true == false", 
-		"return true", false)
 	test("42 == 42", 
 		"return 42", 42)
 	test("type(42) == 'number'", 
 		"return type(42)", 'number')
+	test("not 0",  
+		"return not 0", false)
+test:newsubsection("Core - must fail.")
+	test("true == false", 
+		"return true", false)
 	test("false == nil", 
 		"return false", nil)
 	test("nil == false", 
 		"return nil", false)
+	-- actually, this is just here so it doesn't catch anyone by surprise.
+	test("not not 0", 
+		"return not not 0", false)
 
 -------------------------------------------------------------------------
 test:newsection("Bitfield")
@@ -93,6 +99,8 @@ test:newsubsection("NOT")
 		"local b = bitfield:new(0, 1); b:NOT(); return tostring(b)", '1b')
 	test("NOT 1 (simple)",
 		"local b = bitfield:new(1, 1); b:NOT(); return tostring(b)", '0b')
+	test("NOT 100b", 
+		"local b = bitfield:new(4, 3); b:NOT(); return tostring(b)", '011b')
 test:newsubsection("AND")
 	test("0 AND 0 (simple)",
 		"local b = bitfield:new(0, 1); b:AND(0); return tostring(b)", '0b')
